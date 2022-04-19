@@ -192,26 +192,34 @@ export class WebhookService {
   }
 
   static async sendReply(req): Promise<any> {
-    if (req.message && req.message.chat && req.message.chat.id) {
-      console.log(`[chat message][${req.message.chat.id}]`, req.message.text);
-    }
-    if (req.message && req.message.text && req.message.text === '/covid19') {
+    if (req.service && req.service === 'updateCovid') {
       const message = await WebhookService.getCovid2();
-      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
-      return { status: 'success', code: 0 };
-    }
-    if (req.message && req.message.text && req.message.text === '/madRumor') {
-      const message = MadRumors();
-      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
-      return { status: 'success', code: 0 };
-    }
-    if (!req.message || !req.message.text || req.message.text.indexOf('madnews') < 0) {
-      return { status: 'success', code: 1 };
+      return { status: 'success', code: 0, message };
     }
 
-    if (req.message.chat && req.message.chat.id) {
+    if (!req.message || !req.message.text || !req.message.chat || !req.message.chat.id) {
+      return { status: 'success', code: 0 };
+    }
+    console.log(`[chat message][${req.message.chat.id}]`, req.message.text);
+
+    if (req.message.text === '/covid19') {
+      const message = await WebhookService.getCovid2();
+      if (req.message.chat && req.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
+      }
+      return { status: 'success', code: 0 };
+    }
+
+    if (req.message.text === '/madRumor') {
+      const message = MadRumors();
+      if (req.message.chat && req.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
+      }
+      return { status: 'success', code: 0 };
+    }
+
+    if (req.message.text === '/madnews') {
       const Madness = new MadNews().fullString.trim().replace(/\s\s/g, ' ');
-      console.log(`req.message.chat.id: [${req.message.chat.id}]`);
       console.log(`New madness: [${Madness}]`);
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(Madness)}`);
     }
