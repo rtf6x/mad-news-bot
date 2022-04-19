@@ -3,14 +3,11 @@ import * as cheerio from 'cheerio';
 import * as redis from 'redis';
 import { promisify } from 'util';
 import { WebhookService } from '../src/webhook/webhook.service'
+import settings from "../src/settings";
 
 const covid19 = 'https://www.worldometers.info/coronavirus/';
 
-const redisClient = redis.createClient({
-  host: '159.69.113.123',
-  port: 63719,
-  password: 'rtfuckingfuckyou',
-});
+const redisClient = redis.createClient(settings.redis);
 const redisGet = promisify(redisClient.get).bind(redisClient);
 
 async function run() {

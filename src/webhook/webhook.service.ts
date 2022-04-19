@@ -13,11 +13,7 @@ import MadRumors from './madRumors';
 const covid19 = 'https://www.worldometers.info/coronavirus/';
 const MessagingResponse = twilio.twiml.MessagingResponse;
 
-const redisClient = redis.createClient({
-  host: '159.69.113.123',
-  port: 63719,
-  password: 'rtfuckingfuckyou',
-});
+const redisClient = redis.createClient(settings.redis);
 const redisGet = promisify(redisClient.get).bind(redisClient);
 
 @Injectable()

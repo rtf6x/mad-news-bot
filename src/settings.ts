@@ -4,5 +4,10 @@ export default {
   twilio: {
     sid: '111',
     token: '222',
+  },
+  redis: {
+    host: '123.123.123.123',
+    port: 3719,
+    password: 'password',
   }
 };
