@@ -6,7 +6,6 @@ import * as cheerio from 'cheerio';
 import * as redis from 'redis';
 import { promisify } from 'util';
 import settings from '../settings';
-import MadRumors from './madRumors';
 
 // const client = new twilio(settings.twilio.sid, settings.twilio.token);
 // const covid19 = 'https://coronavirus-tracker-api.herokuapp.com/v2/locations';
