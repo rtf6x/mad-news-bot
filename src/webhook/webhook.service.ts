@@ -15,6 +15,16 @@ const MessagingResponse = twilio.twiml.MessagingResponse;
 const redisClient = redis.createClient(settings.redis);
 const redisGet = promisify(redisClient.get).bind(redisClient);
 
+const carAdviceProtoResults = [
+  'Не бери жука, там 1.2 движок на 1.4 веса, и экологический класс D',
+  'YOLO, что хочется - то и бери!',
+  'Любишь кататься - люби и катайся!',
+  'Какой ответ ожидаешь ты, юный падаван? Выбрать сам способен ибо сила ведёт тебя. Но остерегайся стороны тёмной влияния',
+  'PSA - зло. Французы умеют делать только дизель',
+  'Вам шашечки, или ехать?',
+];
+let carAdviceResults = [];
+
 @Injectable()
 export class WebhookService {
   static async sendWAReply(): Promise<any> {
@@ -216,15 +226,10 @@ export class WebhookService {
     }
 
     if (req.message.text === '/carAdvice' || req.message.text === '/carAdvice@madnews_rtf6x_bot') {
-      const results = [
-        'Не бери жука, там 1.2 движок на 1.4 веса, и экологический класс D',
-        'YOLO, что хочется - то и бери!',
-        'Любишь кататься - люби и катайся!',
-        'Какой ответ ожидаешь ты, юный падаван? Выбрать сам способен ибо сила ведёт тебя. Но остерегайся стороны тёмной влияния',
-        'PSA - зло. Французы умеют делать только дизель',
-        'Вам шашечки, или ехать?',
-      ];
-      var result = results[Math.floor(Math.random() * results.length)];
+      if (!carAdviceResults.length) {
+        carAdviceResults = JSON.parse(JSON.stringify(carAdviceProtoResults));
+      }
+      var result = carAdviceResults[Math.floor(Math.random() * carAdviceResults.length)];
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
     }
 
