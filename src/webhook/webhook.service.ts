@@ -215,7 +215,7 @@ export class WebhookService {
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(Madness)}`);
     }
 
-    if (req.message.text === '/car-advice' || req.message.text === '/car-advice@madnews_rtf6x_bot') {
+    if (req.message.text === '/carAdvice' || req.message.text === '/carAdvice@madnews_rtf6x_bot') {
       const results = [
         'Не бери жука, там 1.2 движок на 1.4 веса, и экологический класс D',
         'YOLO, что хочется - то и бери!',
