@@ -215,6 +215,19 @@ export class WebhookService {
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(Madness)}`);
     }
 
+    if (req.message.text === '/car-advice' || req.message.text === '/car-advice@madnews_rtf6x_bot') {
+      const results = [
+        'Не бери жука, там 1.2 движок на 1.4 веса, и экологический класс D',
+        'YOLO, что хочется - то и бери!',
+        'Любишь кататься - люби и катайся!',
+        'Какой ответ ожидаешь ты, юный падаван? Выбрать сам способен ибо сила ведёт тебя. Но остерегайся стороны тёмной влияния',
+        'PSA - зло. Французы умеют делать только дизель',
+        'Вам шашечки, или ехать?',
+      ];
+      var result = results[Math.floor(Math.random() * results.length)];
+      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
+    }
+
     return { status: 'success', code: 0 };
   }
 }
