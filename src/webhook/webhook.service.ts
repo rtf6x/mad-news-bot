@@ -22,6 +22,8 @@ const carAdviceProtoResults = [
   'Какой ответ ожидаешь ты, юный падаван? Выбрать сам способен ибо сила ведёт тебя. Но остерегайся стороны тёмной влияния',
   'PSA - зло. Французы умеют делать только дизель',
   'Вам шашечки, или ехать?',
+  'Машина бывает Тойота и стиральная',
+  'Сухая DSG - не течёт',
 ];
 let carAdviceResults = [];
 
@@ -229,7 +231,12 @@ export class WebhookService {
       if (!carAdviceResults.length) {
         carAdviceResults = JSON.parse(JSON.stringify(carAdviceProtoResults));
       }
-      var result = carAdviceResults.splice(Math.floor(Math.random() * carAdviceResults.length), 1)[0];
+      const result = carAdviceResults.splice(Math.floor(Math.random() * carAdviceResults.length), 1)[0];
+      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
+    }
+
+    if (req.message.text.toLowerCase().indexOf('спасибо')) {
+      const result = 'Да не за что!';
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
     }
 
