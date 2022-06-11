@@ -229,7 +229,7 @@ export class WebhookService {
       if (!carAdviceResults.length) {
         carAdviceResults = JSON.parse(JSON.stringify(carAdviceProtoResults));
       }
-      var result = carAdviceResults[Math.floor(Math.random() * carAdviceResults.length)];
+      var result = carAdviceResults.splice(Math.floor(Math.random() * carAdviceResults.length), 1)[0];
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
     }
 
