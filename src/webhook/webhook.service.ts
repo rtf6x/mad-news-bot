@@ -235,11 +235,6 @@ export class WebhookService {
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
     }
 
-    if (req.message.text.toLowerCase().indexOf('спасибо') > -1) {
-      const result = 'Да не за что!';
-      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
-    }
-
     return { status: 'success', code: 0 };
   }
 }
