@@ -1,11 +1,13 @@
 const twilio = require('twilio');
 import { Injectable } from '@nestjs/common';
 import fetch from 'node-fetch';
-import * as MadNews from 'mad-news';
+import MadNews from 'mad-news';
 import * as cheerio from 'cheerio';
 import * as redis from 'redis';
 import { promisify } from 'util';
 import settings from '../settings';
+
+const Madness = new MadNews('ru');
 
 // const client = new twilio(settings.twilio.sid, settings.twilio.token);
 // const covid19 = 'https://coronavirus-tracker-api.herokuapp.com/v2/locations';
@@ -30,10 +32,11 @@ let carAdviceResults = [];
 @Injectable()
 export class WebhookService {
   static async sendWAReply(): Promise<any> {
-    const Madness = new MadNews().fullString.trim().replace(/\s\s/g, ' ');
-    console.log(`New madness: [${Madness}]`);
+    Madness.generate();
+    const mad = Madness.fullString.trim().replace(/\s\s/g, ' ');
+    console.log(`New madness: [${mad}]`);
     const twiml = new MessagingResponse();
-    return twiml.message(Madness);
+    return twiml.message(mad);
   }
 
   static getCovidDaysLeft(pop, cases, daily) {
@@ -222,9 +225,9 @@ export class WebhookService {
     }
 
     if (req.message.text === '/madnews' || req.message.text === '/madnews@madnews_rtf6x_bot') {
-      const Madness = new MadNews().fullString.trim().replace(/\s\s/g, ' ');
-      console.log(`New madness: [${Madness}]`);
-      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(Madness)}`);
+      const mad = Madness.fullString.trim().replace(/\s\s/g, ' ');
+      console.log(`New madness: [${mad}]`);
+      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(mad)}`);
     }
 
     if (req.message.text === '/carAdvice' || req.message.text === '/carAdvice@madnews_rtf6x_bot') {

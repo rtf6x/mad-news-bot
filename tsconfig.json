@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
     "module": "commonjs",
+    "target": "es6",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es6",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "incremental": true
+    "incremental": true,
+    "esModuleInterop": true,
   },
   "exclude": [
     "node_modules",
