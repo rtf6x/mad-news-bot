@@ -1,6 +1,7 @@
-import MadNews from 'mad-news';
+import * as MadNews from 'mad-news';
 
 async function run() {
+  // @ts-ignore
   const Madness = new MadNews('ru');
   console.log(Madness.fullString);
   Madness.generate();

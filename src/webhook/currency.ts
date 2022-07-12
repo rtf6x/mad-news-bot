@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import 'dayjs/locale/ru';
 
 const currenciesUrl = 'https://www.cbr-xml-daily.ru/daily_json.js';

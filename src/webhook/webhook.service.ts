@@ -1,26 +1,16 @@
 const twilio = require('twilio');
 import { Injectable } from '@nestjs/common';
 import fetch from 'node-fetch';
-import MadNews from 'mad-news';
+import * as MadNews from 'mad-news';
 import getCovid19 from './getCovid19';
 import currency from './currency';
+import carAdvice from './carAdvice';
 import settings from '../settings';
 
+// @ts-ignore
 const Madness = new MadNews('ru');
 
 const MessagingResponse = twilio.twiml.MessagingResponse;
-
-const carAdviceProtoResults = [
-  'Не бери жука, там 1.2 движок на 1.4 веса, и экологический класс D',
-  'YOLO, что хочется - то и бери!',
-  'Любишь кататься - люби и катайся!',
-  'Какой ответ ожидаешь ты, юный падаван? Выбрать сам способен ибо сила ведёт тебя. Но остерегайся стороны тёмной влияния',
-  'PSA - зло. Французы умеют делать только дизель',
-  'Вам шашечки, или ехать?',
-  'Машина бывает Тойота и стиральная',
-  'Сухая DSG - не течёт',
-];
-let carAdviceResults = [];
 
 @Injectable()
 export class WebhookService {
@@ -67,11 +57,11 @@ export class WebhookService {
     }
 
     if (req.message.text === '/carAdvice' || req.message.text === '/carAdvice@madnews_rtf6x_bot') {
-      if (!carAdviceResults.length) {
-        carAdviceResults = JSON.parse(JSON.stringify(carAdviceProtoResults));
+      const message = await carAdvice();
+      if (req.message.chat && req.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
       }
-      const result = carAdviceResults.splice(Math.floor(Math.random() * carAdviceResults.length), 1)[0];
-      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(result)}`);
+      return { status: 'success', code: 0 };
     }
 
     return { status: 'success', code: 0 };

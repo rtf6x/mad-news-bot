@@ -8,7 +8,7 @@ import { AppModule } from './app.module';
 import settings from './settings';
 
 async function bootstrap() {
-  const app = express();
+  const app = new ExpressAdapter();
 
   app.set('json spaces', 2);
   app.set('trust proxy', true);
