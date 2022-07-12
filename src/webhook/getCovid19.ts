@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 import * as redis from 'redis';
 import { promisify } from 'util';

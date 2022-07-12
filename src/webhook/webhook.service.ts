@@ -22,7 +22,6 @@ export class WebhookService {
     return twiml.message(mad);
   }
 
-
   static async sendReply(req): Promise<any> {
     if (req.service && req.service === 'updateCovid') {
       const message = await getCovid19();
