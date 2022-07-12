@@ -50,7 +50,8 @@ export class WebhookService {
     }
 
     if (req.message.text === '/madnews' || req.message.text === '/madnews@madnews_rtf6x_bot') {
-      const mad = Madness.fullString.trim().replace(/\s\s/g, ' ');
+      Madness.generate();
+      const mad = Madness.fullString;
       console.log(`New madness: [${mad}]`);
       await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(mad)}`);
     }
