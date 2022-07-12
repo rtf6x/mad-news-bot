@@ -12,7 +12,7 @@ const randomCurrencies = [
 
 const getCurrencyData = (data, currencyKey) => {
   if (!data.Valute[currencyKey]) {
-    return '';
+    return `[${currencyKey}] Нет данных по валюте!`;
   }
   const result = {
     cur: data.Valute[currencyKey].Value,
