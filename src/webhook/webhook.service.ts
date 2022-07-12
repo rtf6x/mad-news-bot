@@ -49,6 +49,15 @@ export class WebhookService {
       return { status: 'success', code: 0 };
     }
 
+    if (req.message.text.indexOf('/currency ') === 0 || req.message.text.indexOf('/currency@madnews_rtf6x_bot ') === 0) {
+      const currencyKey = req.message.text.split(' ')[1].toUpperCase();
+      const message = await currency(currencyKey);
+      if (req.message.chat && req.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
+      }
+      return { status: 'success', code: 0 };
+    }
+
     if (req.message.text === '/madnews' || req.message.text === '/madnews@madnews_rtf6x_bot') {
       Madness.generate();
       const mad = Madness.fullString;

@@ -32,7 +32,7 @@ const getCurrencyData = (data, currencyKey) => {
   return `[${currencyKey}][${name}] ${result.cur} (${changed})`;
 };
 
-export default async function currency() {
+export default async function currency(currencyKey = null) {
   let data: any = await fetch(currenciesUrl);
   data = await data.json();
   if (
@@ -50,13 +50,19 @@ export default async function currency() {
     updated: dayjs(data.Date || 0).format('DD.MM.YYYY (HH:mm)'),
     prevDate: dayjs(data.PreviousDate || 0).format('DD.MM.YYYY (HH:mm)'),
   };
-  return `[Обновлено: ${dates.updated} | Предыдущие данные: ${dates.prevDate}]
-
-${getCurrencyData(data, 'USD')}
+  let currencies;
+  if (currencyKey) {
+    currencies = `${getCurrencyData(data, currencyKey)}`;
+  } else {
+    currencies = `${getCurrencyData(data, 'USD')}
 ${getCurrencyData(data, 'EUR')}
 ${getCurrencyData(data, 'GBP')}
 ${getCurrencyData(data, 'JPY')}
-${getCurrencyData(data, randomCurrencies[Math.floor(Math.random() * randomCurrencies.length)])}
+${getCurrencyData(data, randomCurrencies[Math.floor(Math.random() * randomCurrencies.length)])}`;
+  }
+  return `[Обновлено: ${dates.updated} | Предыдущие данные: ${dates.prevDate}]
+
+${currencies}
 
 (Источник: cbr-xml-daily.ru)
 `;
