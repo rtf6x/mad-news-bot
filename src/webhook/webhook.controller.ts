@@ -2,6 +2,8 @@ import { Body, Controller, HttpStatus, Post, Get, Res } from '@nestjs/common';
 import { WebhookService } from './webhook.service';
 import { Response } from 'express';
 
+import getCovid19 from './getCovid19';
+
 @Controller('api/webhooks')
 export class WebhookController {
   @Post('/mad-news')
@@ -17,7 +19,7 @@ export class WebhookController {
   async covid19(
     @Res() res: Response,
   ): Promise<any> {
-    const result = await WebhookService.getCovid2();
+    const result = await getCovid19();
     res.status(HttpStatus.OK).json(result);
   }
 
