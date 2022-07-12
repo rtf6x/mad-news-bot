@@ -7,7 +7,7 @@ dayjs.locale('ru');
 
 const randomCurrencies = [
   'AUD', 'AZN', 'AMD', 'BYN', 'BGN', 'BRL', 'HUF', 'HKD', 'DKK', 'INR', 'KZT', 'CAD', 'KGS', 'CNY', 'MDL', 'NOK',
-  'PLN', 'RON', 'XDR', 'SGD', 'TJS', 'TRY', 'TMT', 'UZS', 'UAH', 'CZK', 'SEK', 'CHF', 'ZAR', 'KRW',
+  'PLN', 'RON', 'XDR', 'SGD', 'TJS', 'TRY', 'TMT', 'UZS', 'UAH', 'CZK', 'SEK', 'ZAR', 'KRW',
 ];
 
 const getCurrencyData = (data, currencyKey) => {
@@ -57,7 +57,7 @@ export default async function currency(currencyKey = null) {
     currencies = `${getCurrencyData(data, 'USD')}
 ${getCurrencyData(data, 'EUR')}
 ${getCurrencyData(data, 'GBP')}
-${getCurrencyData(data, 'JPY')}
+${getCurrencyData(data, 'CHF')}
 ${getCurrencyData(data, randomCurrencies[Math.floor(Math.random() * randomCurrencies.length)])}`;
   }
   return `[Обновлено: ${dates.updated} | Предыдущие данные: ${dates.prevDate}]
