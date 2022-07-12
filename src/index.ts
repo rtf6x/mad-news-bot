@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import * as express from 'express';
+import * as Express from 'express';
 import * as bodyParser from 'body-parser';
 import * as morgan from 'morgan';
 
@@ -8,12 +8,13 @@ import { AppModule } from './app.module';
 import settings from './settings';
 
 async function bootstrap() {
-  const app = new ExpressAdapter();
+  // @ts-ignore
+  const app = new Express();
 
   app.set('json spaces', 2);
   app.set('trust proxy', true);
   app.disable('x-powered-by');
-  app.use(express.static('client'));
+  app.use(Express.static('client'));
   app.use(morgan('dev'));
 
   app.use(bodyParser.json());
