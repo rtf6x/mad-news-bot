@@ -27,7 +27,7 @@
     "express": "^4.17.1",
     "mad-news": "^2.0.2",
     "morgan": "^1.9.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.7",
     "redis": "^3.1.2",
     "reflect-metadata": "^0.1.13",
     "rimraf": "2.6.3",
