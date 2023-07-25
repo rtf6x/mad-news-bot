@@ -4,14 +4,14 @@
   "description": "Генератор самых драматических новостей. Сенсационные факты о Российской глубинке!",
   "main": "index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "ts-node -r tsconfig-paths/register src/index.ts",
-    "start:dev": "concurrently --handle-input \"wait-on dist/index.js && nodemon\" \"tsc -w -p tsconfig.build.json\" ",
+    "start:dev": "concurrently --handle-input \"wait-on dist/index.js && nodemon\" \"tsc -w\" ",
     "start:debug": "nodemon --config nodemon-debug.json",
     "prestart:prod": "rimraf dist && npm run build",
     "start:prod": "node dist/index.js",
-    "lint": "tslint -p tsconfig.json -c tslint.json",
+    "lint": "tslint -c tslint.json",
     "test": "echo \"Error: no test specified\" && exit 1",
     "rumors": "ts-node -e \"import madRumors from './src/webhook/madRumors'; console.log(madRumors())\""
   },
@@ -42,6 +42,6 @@
     "ts-node": "8.2.0",
     "tsconfig-paths": "3.8.0",
     "tslint": "5.16.0",
-    "typescript": "3.4.5"
+    "typescript": "4.9.5"
   }
 }

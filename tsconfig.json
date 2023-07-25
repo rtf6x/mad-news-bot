@@ -10,10 +10,14 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
+    "skipLibCheck": true,
+    "types": []
   },
   "exclude": [
     "node_modules",
     "dist",
-    "tests"
+    "tests",
+    "**/*spec.ts",
+    "**/*.d.ts"
   ]
 }
