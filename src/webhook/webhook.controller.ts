@@ -54,4 +54,13 @@ export class WebhookController {
     const result = await WebhookService.sendReply(req);
     res.status(HttpStatus.OK).json(result);
   }
+
+  @Post('hire')
+  async hire(
+    @Res() res: Response,
+    @Body() req: any,
+  ): Promise<any> {
+    const result = await WebhookService.sendHireMe(req);
+    res.status(HttpStatus.OK).json(result);
+  }
 }

@@ -22,6 +22,18 @@ export class WebhookService {
     return twiml.message(mad);
   }
 
+  static async sendHireMe(req): Promise<any> {
+    if (!req.body.history || !req.body.points) {
+      return { status: 'error', code: 1 };
+    }
+    let message = `Points: ${req.body.points}\n`;
+    req.body.history.forEach(historyItem => {
+      message += `${historyItem.question}: ${historyItem.answer}\n`;
+    });
+    await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=324702279&text=${encodeURIComponent(message)}`);
+    return { status: 'success', code: 0 };
+  }
+
   static async sendReply(req): Promise<any> {
     if (req.service && req.service === 'updateCovid') {
       const message = await getCovid19();
