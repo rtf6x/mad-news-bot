@@ -1,8 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import * as Express from 'express';
-import * as bodyParser from 'body-parser';
-import * as morgan from 'morgan';
+import Express from 'express';
+import bodyParser from 'body-parser';
+import morgan from 'morgan';
 
 import { AppModule } from './app.module';
 import settings from './settings';

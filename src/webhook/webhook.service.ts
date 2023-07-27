@@ -1,7 +1,7 @@
 const twilio = require('twilio');
 import { Injectable } from '@nestjs/common';
 import fetch from 'node-fetch';
-import * as MadNews from 'mad-news';
+import MadNews from 'mad-news';
 import getCovid19 from './getCovid19';
 import currency from './currency';
 import carAdvice from './carAdvice';
