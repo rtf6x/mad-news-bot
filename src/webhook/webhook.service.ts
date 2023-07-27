@@ -23,7 +23,8 @@ export class WebhookService {
   }
 
   static async sendHireMe(body): Promise<any> {
-    if (!body.history || !body.points) {
+    console.log('body', body);
+    if (!body.history?.length || !body.points) {
       return { status: 'error', code: 1 };
     }
     let message = `Points: ${body.points}\n`;
