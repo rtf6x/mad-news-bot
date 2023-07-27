@@ -37,7 +37,7 @@ export class WebhookController {
     res.end(result.toString());
   }
 
-  @Post('mad-news-en')
+  @Post('/mad-news-en')
   async madNewsEn(
     @Res() res: Response,
     @Body() req: any,
@@ -46,7 +46,7 @@ export class WebhookController {
     res.status(HttpStatus.OK).json(result);
   }
 
-  @Post('vovan')
+  @Post('/vovan')
   async vovan(
     @Res() res: Response,
     @Body() req: any,
@@ -55,7 +55,7 @@ export class WebhookController {
     res.status(HttpStatus.OK).json(result);
   }
 
-  @Post('hire')
+  @Post('/hire')
   async hire(
     @Res() res: Response,
     @Body() req: any,
