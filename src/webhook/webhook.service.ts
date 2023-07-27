@@ -22,65 +22,65 @@ export class WebhookService {
     return twiml.message(mad);
   }
 
-  static async sendHireMe(req): Promise<any> {
-    if (!req.body.history || !req.body.points) {
+  static async sendHireMe(body): Promise<any> {
+    if (!body.history || !body.points) {
       return { status: 'error', code: 1 };
     }
-    let message = `Points: ${req.body.points}\n`;
-    req.body.history.forEach(historyItem => {
+    let message = `Points: ${body.points}\n`;
+    body.history.forEach(historyItem => {
       message += `${historyItem.question}: ${historyItem.answer}\n`;
     });
     await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=324702279&text=${encodeURIComponent(message)}`);
     return { status: 'success', code: 0 };
   }
 
-  static async sendReply(req): Promise<any> {
-    if (req.service && req.service === 'updateCovid') {
+  static async sendReply(body): Promise<any> {
+    if (body.service && body.service === 'updateCovid') {
       const message = await getCovid19();
       return { status: 'success', code: 0, message };
     }
 
-    if (!req.message || !req.message.text || !req.message.chat || !req.message.chat.id) {
+    if (!body.message || !body.message.text || !body.message.chat || !body.message.chat.id) {
       return { status: 'success', code: 0 };
     }
-    console.log(`[chat message][${req.message.chat.id}]`, req.message.text);
+    console.log(`[chat message][${body.message.chat.id}]`, body.message.text);
 
-    if (req.message.text === '/covid19' || req.message.text === '/covid19@madnews_rtf6x_bot') {
+    if (body.message.text === '/covid19' || body.message.text === '/covid19@madnews_rtf6x_bot') {
       const message = await getCovid19();
-      if (req.message.chat && req.message.chat.id) {
-        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
+      if (body.message.chat && body.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
       }
       return { status: 'success', code: 0 };
     }
 
-    if (req.message.text === '/currency' || req.message.text === '/currency@madnews_rtf6x_bot') {
+    if (body.message.text === '/currency' || body.message.text === '/currency@madnews_rtf6x_bot') {
       const message = await currency();
-      if (req.message.chat && req.message.chat.id) {
-        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
+      if (body.message.chat && body.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
       }
       return { status: 'success', code: 0 };
     }
 
-    if (req.message.text.indexOf('/currency ') === 0 || req.message.text.indexOf('/currency@madnews_rtf6x_bot ') === 0) {
-      const currencyKey = req.message.text.split(' ')[1].toUpperCase();
+    if (body.message.text.indexOf('/currency ') === 0 || body.message.text.indexOf('/currency@madnews_rtf6x_bot ') === 0) {
+      const currencyKey = body.message.text.split(' ')[1].toUpperCase();
       const message = await currency(currencyKey);
-      if (req.message.chat && req.message.chat.id) {
-        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
+      if (body.message.chat && body.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
       }
       return { status: 'success', code: 0 };
     }
 
-    if (req.message.text === '/madnews' || req.message.text === '/madnews@madnews_rtf6x_bot') {
+    if (body.message.text === '/madnews' || body.message.text === '/madnews@madnews_rtf6x_bot') {
       Madness.generate();
       const mad = Madness.fullString;
       console.log(`New madness: [${mad}]`);
-      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(mad)}`);
+      await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(mad)}`);
     }
 
-    if (req.message.text === '/carAdvice' || req.message.text === '/carAdvice@madnews_rtf6x_bot') {
+    if (body.message.text === '/carAdvice' || body.message.text === '/carAdvice@madnews_rtf6x_bot') {
       const message = await carAdvice();
-      if (req.message.chat && req.message.chat.id) {
-        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${req.message.chat.id}&text=${encodeURIComponent(message)}`);
+      if (body.message.chat && body.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
       }
       return { status: 'success', code: 0 };
     }

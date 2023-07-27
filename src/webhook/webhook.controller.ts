@@ -9,9 +9,9 @@ export class WebhookController {
   @Post('/mad-news')
   async madNews(
     @Res() res: Response,
-    @Body() req: any,
+    @Body() body: any,
   ): Promise<any> {
-    const result = await WebhookService.sendReply(req);
+    const result = await WebhookService.sendReply(body);
     res.status(HttpStatus.OK).json(result);
   }
 
@@ -26,9 +26,9 @@ export class WebhookController {
   @Post('/mad-news-wa')
   async madNewsWA(
     @Res() res: Response,
-    @Body() req: any,
+    @Body() body: any,
   ): Promise<any> {
-    console.log('[WA] body:', req.Body);
+    console.log('[WA] body:', body.Body);
     // if (['news', 'mad', 'madnews'].indexOf(req.Body) < 0) {
     //   return;
     // }
@@ -40,27 +40,27 @@ export class WebhookController {
   @Post('/mad-news-en')
   async madNewsEn(
     @Res() res: Response,
-    @Body() req: any,
+    @Body() body: any,
   ): Promise<any> {
-    const result = await WebhookService.sendReply(req);
+    const result = await WebhookService.sendReply(body);
     res.status(HttpStatus.OK).json(result);
   }
 
   @Post('/vovan')
   async vovan(
     @Res() res: Response,
-    @Body() req: any,
+    @Body() body: any,
   ): Promise<any> {
-    const result = await WebhookService.sendReply(req);
+    const result = await WebhookService.sendReply(body);
     res.status(HttpStatus.OK).json(result);
   }
 
   @Post('/hire')
   async hire(
     @Res() res: Response,
-    @Body() req: any,
+    @Body() body: any,
   ): Promise<any> {
-    const result = await WebhookService.sendHireMe(req);
+    const result = await WebhookService.sendHireMe(body);
     res.status(HttpStatus.OK).json(result);
   }
 }
