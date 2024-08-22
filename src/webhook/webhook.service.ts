@@ -1,3 +1,5 @@
+import getPrograScope from './getPrograScope';
+
 const twilio = require('twilio');
 import { Injectable } from '@nestjs/common';
 import fetch from 'node-fetch';
@@ -6,6 +8,7 @@ import getCovid19 from './getCovid19';
 import currency from './currency';
 import carAdvice from './carAdvice';
 import settings from '../settings';
+import getPrograscope from './getPrograScope';
 
 // @ts-ignore
 const Madness = new MadNews('ru');
@@ -44,7 +47,16 @@ export class WebhookService {
     if (!body.message || !body.message.text || !body.message.chat || !body.message.chat.id) {
       return { status: 'success', code: 0 };
     }
-    console.log(`[chat message][${body.message.chat.id}]`, body.message.text);
+    const senderId = body.message.from?.id || 0;
+    console.log(`[chat message][${body.message.chat.id}][${body.message.from?.id || 0}]`, body.message.text);
+
+    if (body.message.text === '/prograscope' || body.message.text === '/prograscope@madnews_rtf6x_bot') {
+      const message = getPrograscope(senderId);
+      if (body.message.chat && body.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
+      }
+      return { status: 'success', code: 0 };
+    }
 
     if (body.message.text === '/covid19' || body.message.text === '/covid19@madnews_rtf6x_bot') {
       const message = await getCovid19();

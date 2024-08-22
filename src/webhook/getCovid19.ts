@@ -37,7 +37,7 @@ export default async function covid() {
   let perDayDR: any = 0;
   let data: any = await fetch(covid19);
   data = await data.text();
-  var $ = cheerio.load(data);
+  const $ = cheerio.load(data);
   const res: any = {
     a: 0,
     c: 0,
@@ -49,13 +49,13 @@ export default async function covid() {
     rr: 0,
     nc: 0,
   };
-  $('.maincounter-number span').each(function (i, item) {
+  $('.maincounter-number span').each((i, item) => {
     if (i > 2) {
       return;
     }
     res[['c', 'd', 'r'][i]] = parseInt($(item).text().trim().replace(/,/g, ''), 10);
   });
-  $('#main_table_countries_today tbody tr').each(function (i, item) {
+  $('#main_table_countries_today tbody tr').each((i, item) => {
     if ($('td:nth-child(2)', item).text() === 'World') {
       res.nc = parseInt($('td:nth-child(4)', item).text().trim().replace(/,/g, '') || '0', 10);
       return;
@@ -92,18 +92,18 @@ export default async function covid() {
     }));
   } else {
     prevResults = JSON.parse(prevResults);
-    const daysLeft = Math.floor((Date.now() - prevResults.date) / (24 * 3600000));
+    const daysLeft1 = Math.floor((Date.now() - prevResults.date) / (24 * 3600000));
     perDay = res.c - prevResults.c;
     perDayR = res.rc - prevResults.rc;
     perDayD = res.d - prevResults.d;
     perDayDR = res.rd - prevResults.rd;
-    if (daysLeft) {
-      perDay = Math.floor(perDay / daysLeft);
-      perDayR = Math.floor(perDayR / daysLeft);
-      perDayD = Math.floor(perDayD / daysLeft);
-      perDayDR = Math.floor(perDayDR / daysLeft);
+    if (daysLeft1) {
+      perDay = Math.floor(perDay / daysLeft1);
+      perDayR = Math.floor(perDayR / daysLeft1);
+      perDayD = Math.floor(perDayD / daysLeft1);
+      perDayDR = Math.floor(perDayDR / daysLeft1);
     }
-    if (daysLeft > 2) {
+    if (daysLeft1 > 2) {
       let nextPrevResults = await redisGet('nextPrev');
       console.log('nextPrevResults', nextPrevResults);
       if (!nextPrevResults) {
@@ -121,9 +121,9 @@ export default async function covid() {
         }));
       } else {
         nextPrevResults = JSON.parse(nextPrevResults);
-        const daysLeft = Math.floor((Date.now() - nextPrevResults.date) / (24 * 3600000));
+        const daysLeft2 = Math.floor((Date.now() - nextPrevResults.date) / (24 * 3600000));
         // если прошло больше 2х дней, ставим prev и обновляем nextPrev
-        if (daysLeft > 2) {
+        if (daysLeft2 > 2) {
           redisClient.setex('prev', 14 * 24 * 3600, JSON.stringify(nextPrevResults));
           redisClient.setex('nextPrev', 14 * 24 * 3600, JSON.stringify({
             date: Date.now(),
@@ -142,7 +142,7 @@ export default async function covid() {
     }
   }
 
-  const daysLeft = getCovidDaysLeft(population, res.c, perDay);
+  const daysLeft3 = getCovidDaysLeft(population, res.c, perDay);
 
   if (perDay) {
     perDay = parseInt(perDay, 10).toLocaleString('ru');
@@ -157,6 +157,7 @@ export default async function covid() {
     perDayDR = parseInt(perDayDR, 10).toLocaleString('ru');
   }
 
+  // tslint:disable-next-line:max-line-length
   return `[Мир] Случаев: ${(res.c).toLocaleString('ru')} | Смертей: ${(res.d).toLocaleString('ru')} | Выздоровели: ${(res.r).toLocaleString('ru')} | Болеют: ${(res.a).toLocaleString('ru')}
 [Россия] Случаев: ${(res.rc).toLocaleString('ru')} | Смертей: ${(res.rd).toLocaleString('ru')} | Выздоровели: ${(res.rr).toLocaleString('ru')} | Болеют: ${(res.ra).toLocaleString('ru')}
 
@@ -170,7 +171,7 @@ export default async function covid() {
 [Умерли за день] ${perDayD || 'N/A'}
 [Умерли за день (Россия)] ${perDayDR || 'N/A'}
 
-[Дней осталось (с текущей заболеваемостью)] ${(daysLeft).toLocaleString('ru')}
+[Дней осталось (с текущей заболеваемостью)] ${(daysLeft3).toLocaleString('ru')}
 [Умрут] ${(Math.floor(population / 100 * deathsPercent)).toLocaleString('ru')}
 
 (Источник: worldometers)
