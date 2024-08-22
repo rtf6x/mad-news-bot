@@ -1,5 +1,3 @@
-import getPrograScope from './getPrograScope';
-
 const twilio = require('twilio');
 import { Injectable } from '@nestjs/common';
 import fetch from 'node-fetch';
