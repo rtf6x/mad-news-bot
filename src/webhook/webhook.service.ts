@@ -1,3 +1,5 @@
+import getAlcoscope from './getAlcoScope';
+
 const twilio = require('twilio');
 import { Injectable } from '@nestjs/common';
 import fetch from 'node-fetch';
@@ -50,6 +52,14 @@ export class WebhookService {
 
     if (body.message.text === '/prograscope' || body.message.text === '/prograscope@madnews_rtf6x_bot') {
       const message = getPrograscope(senderId);
+      if (body.message.chat && body.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
+      }
+      return { status: 'success', code: 0 };
+    }
+
+    if (body.message.text === '/alcoscope' || body.message.text === '/alcoscope@madnews_rtf6x_bot') {
+      const message = getAlcoscope(senderId);
       if (body.message.chat && body.message.chat.id) {
         await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
       }
