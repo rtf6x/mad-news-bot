@@ -31,10 +31,6 @@ function getCovidDaysLeft(pop, cases, daily) {
 }
 
 export default async function covid() {
-  let perDay: any = 0;
-  let perDayR: any = 0;
-  let perDayD: any = 0;
-  let perDayDR: any = 0;
   let data: any = await fetch(covid19);
   data = await data.text();
   const $ = cheerio.load(data);
@@ -74,7 +70,6 @@ export default async function covid() {
   const population = 7800000000;
   const casesPercent = Math.round(100 / (population / res.c) * 100) / 100;
   const deathsPercent = Math.round(100 / (res.c / res.d) * 100) / 100;
-  const recoveryPercent = Math.round(100 / (res.c / res.r) * 100) / 100;
 
   let prevResults = await redisGet('prev');
   if (!prevResults) {
@@ -93,16 +88,6 @@ export default async function covid() {
   } else {
     prevResults = JSON.parse(prevResults);
     const daysLeft1 = Math.floor((Date.now() - prevResults.date) / (24 * 3600000));
-    perDay = res.c - prevResults.c;
-    perDayR = res.rc - prevResults.rc;
-    perDayD = res.d - prevResults.d;
-    perDayDR = res.rd - prevResults.rd;
-    if (daysLeft1) {
-      perDay = Math.floor(perDay / daysLeft1);
-      perDayR = Math.floor(perDayR / daysLeft1);
-      perDayD = Math.floor(perDayD / daysLeft1);
-      perDayDR = Math.floor(perDayDR / daysLeft1);
-    }
     if (daysLeft1 > 2) {
       let nextPrevResults = await redisGet('nextPrev');
       console.log('nextPrevResults', nextPrevResults);
@@ -142,37 +127,17 @@ export default async function covid() {
     }
   }
 
-  const daysLeft3 = getCovidDaysLeft(population, res.c, perDay);
-
-  if (perDay) {
-    perDay = parseInt(perDay, 10).toLocaleString('ru');
-  }
-  if (perDayR) {
-    perDayR = parseInt(perDayR, 10).toLocaleString('ru');
-  }
-  if (perDayD) {
-    perDayD = parseInt(perDayD, 10).toLocaleString('ru');
-  }
-  if (perDayDR) {
-    perDayDR = parseInt(perDayDR, 10).toLocaleString('ru');
-  }
-
   // tslint:disable-next-line:max-line-length
-  return `[Мир] Случаев: ${(res.c).toLocaleString('ru')} | Смертей: ${(res.d).toLocaleString('ru')} | Выздоровели: ${(res.r).toLocaleString('ru')} | Болеют: ${(res.a).toLocaleString('ru')}
-[Россия] Случаев: ${(res.rc).toLocaleString('ru')} | Смертей: ${(res.rd).toLocaleString('ru')} | Выздоровели: ${(res.rr).toLocaleString('ru')} | Болеют: ${(res.ra).toLocaleString('ru')}
+  return `[Данные по SARS-Cov19 на 13 Апреля 2024]
+
+[Мир] Случаев: ${(res.c).toLocaleString('ru')}
+[Мир] Смертей: ${(res.d).toLocaleString('ru')}
+
+[Россия] Случаев: ${(res.rc).toLocaleString('ru')}
+[Россия] Смертей: ${(res.rd).toLocaleString('ru')}
 
 [Процент заболевших (от ${(population).toLocaleString('ru')})] ${casesPercent}%
-[Процент смертей] ${deathsPercent}%
-[Выздоровели] ${recoveryPercent}%
-
-[Новых случаев (Мир)] ${perDay || 'N/A'}
-[Новых случаев (Россия)] ${perDayR || 'N/A'}
-
-[Умерли за день] ${perDayD || 'N/A'}
-[Умерли за день (Россия)] ${perDayDR || 'N/A'}
-
-[Дней осталось (с текущей заболеваемостью)] ${(daysLeft3).toLocaleString('ru')}
-[Умрут] ${(Math.floor(population / 100 * deathsPercent)).toLocaleString('ru')}
+[Смертность] ${deathsPercent}%
 
 (Источник: worldometers)
 `;
