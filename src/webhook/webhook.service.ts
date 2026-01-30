@@ -59,7 +59,7 @@ export class WebhookService {
       return { status: 'success', code: 0 };
     }
 
-    if (body.message.text === '/nasa-apod' || body.message.text === '/nasa-apod@madnews_rtf6x_bot') {
+    if (body.message.text === '/nasaapod' || body.message.text === '/nasaapod@madnews_rtf6x_bot') {
       const message = await getNasaApod();
       if (body.message.chat && body.message.chat.id) {
         await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
