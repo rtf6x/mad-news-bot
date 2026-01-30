@@ -10,12 +10,11 @@ const redisGet = promisify(redisClient.get).bind(redisClient);
 const apodUrl = 'https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY';
 
 export default async function getNasaApod() {
-  let data: any = await fetch(apodUrl);
-  data = await data.json();
-
   let res = await redisGet('nasa-apod');
   if (!res) {
-    redisClient.setex('nasa-apod', 24 * 3600, JSON.stringify({
+    let data: any = await fetch(apodUrl);
+    data = await data.json();
+    res = {
       copyright: data.copyright,
       date: data.date,
       explanation: data.explanation,
@@ -24,7 +23,8 @@ export default async function getNasaApod() {
       service_version: data.service_version,
       title: data.title,
       url: data.url,
-    }));
+    };
+    redisClient.setex('nasa-apod', 24 * 3600, JSON.stringify(res));
   } else {
     res = JSON.parse(res);
   }
