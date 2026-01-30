@@ -24,7 +24,7 @@ export class WebhookController {
     res.status(HttpStatus.OK).json(result);
   }
 
-  @Get('/nasa-apod')
+  @Get('/nasaapod')
   async nasaApod(
     @Res() res: Response,
   ): Promise<any> {

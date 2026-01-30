@@ -32,12 +32,12 @@ export default async function getNasaApod() {
   // tslint:disable-next-line:max-line-length
   return `[NASA APOD ${res.date}]
 
-  ${res.title}
+${res.title}
 
-  ${res.explanation}
+${res.explanation}
 
-  (c) ${res.copyright}
+(c) ${res.copyright}
 
-  ${res.hdurl}
+${res.hdurl}
 `;
 }
