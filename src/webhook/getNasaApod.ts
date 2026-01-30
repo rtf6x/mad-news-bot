@@ -36,7 +36,7 @@ export default async function getNasaApod() {
 ${res.explanation}
 
 Hi-Res: ${res.hdurl}
-(c) ${res.copyright}
+(c) ${res.copyright || 'NASA'}
 `,
   };
 }
