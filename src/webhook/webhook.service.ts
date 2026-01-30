@@ -9,6 +9,7 @@ import currency from './currency';
 import carAdvice from './carAdvice';
 import settings from '../settings';
 import getPrograscope from './getPrograScope';
+import getNasaApod from './getNasaApod';
 
 // @ts-ignore
 const Madness = new MadNews('ru');
@@ -52,6 +53,14 @@ export class WebhookService {
 
     if (body.message.text === '/prograscope' || body.message.text === '/prograscope@madnews_rtf6x_bot') {
       const message = getPrograscope(senderId);
+      if (body.message.chat && body.message.chat.id) {
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
+      }
+      return { status: 'success', code: 0 };
+    }
+
+    if (body.message.text === '/nasa-apod' || body.message.text === '/nasa-apod@madnews_rtf6x_bot') {
+      const message = await getNasaApod();
       if (body.message.chat && body.message.chat.id) {
         await fetch(`https://api.telegram.org/bot${settings.botId}/sendMessage?chat_id=${body.message.chat.id}&text=${encodeURIComponent(message)}`);
       }

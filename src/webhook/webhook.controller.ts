@@ -3,6 +3,7 @@ import { WebhookService } from './webhook.service';
 import { Response } from 'express';
 
 import getCovid19 from './getCovid19';
+import getNasaApod from './getNasaApod';
 
 @Controller('api/webhooks')
 export class WebhookController {
@@ -20,6 +21,14 @@ export class WebhookController {
     @Res() res: Response,
   ): Promise<any> {
     const result = await getCovid19();
+    res.status(HttpStatus.OK).json(result);
+  }
+
+  @Get('/nasa-apod')
+  async nasaApod(
+    @Res() res: Response,
+  ): Promise<any> {
+    const result = await getNasaApod();
     res.status(HttpStatus.OK).json(result);
   }
 
