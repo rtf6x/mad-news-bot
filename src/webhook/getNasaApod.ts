@@ -30,11 +30,12 @@ export default async function getNasaApod() {
 
   // tslint:disable-next-line:max-line-length
   return {
-    photo: res.hdurl,
+    photo: res.url,
     message: `${res.title} (${res.date})
 
 ${res.explanation}
 
+Hi-Res: ${res.hdurl}
 (c) ${res.copyright}
 `,
   };
