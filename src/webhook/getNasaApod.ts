@@ -1,5 +1,4 @@
 import fetch from 'node-fetch';
-import * as cheerio from 'cheerio';
 import * as redis from 'redis';
 import { promisify } from 'util';
 import settings from '../settings';
@@ -30,14 +29,13 @@ export default async function getNasaApod() {
   }
 
   // tslint:disable-next-line:max-line-length
-  return `[NASA APOD ${res.date}]
-
-${res.title}
+  return {
+    photo: res.hdurl,
+    message: `${res.title} (${res.date})
 
 ${res.explanation}
 
 (c) ${res.copyright}
-
-${res.hdurl}
-`;
+`,
+  };
 }
