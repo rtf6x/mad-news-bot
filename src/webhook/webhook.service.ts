@@ -62,8 +62,7 @@ export class WebhookService {
     if (body.message.text === '/nasaapod' || body.message.text === '/nasaapod@madnews_rtf6x_bot') {
       const { message, photo } = await getNasaApod();
       if (body.message.chat && body.message.chat.id) {
-        const result = await fetch(`https://api.telegram.org/bot${settings.botId}/sendPhoto?chat_id=${body.message.chat.id}&photo=${encodeURIComponent(photo)}&caption=${encodeURIComponent(message)}`);
-        console.log(await result.text());
+        await fetch(`https://api.telegram.org/bot${settings.botId}/sendPhoto?chat_id=${body.message.chat.id}&photo=${encodeURIComponent(photo)}&caption=${encodeURIComponent(message)}`);
       }
       return { status: 'success', code: 0 };
     }
