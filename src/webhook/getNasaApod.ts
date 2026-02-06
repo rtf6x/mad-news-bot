@@ -33,7 +33,7 @@ export default async function getNasaApod() {
     photo: res.url,
     message: `${res.title} (${res.date})
 
-${res.explanation}
+${res.explanation.split('.')[0]}
 
 Hi-Res: ${res.hdurl}
 (c) ${res.copyright || 'NASA'}
