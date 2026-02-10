@@ -38,6 +38,7 @@ export default async function currency(currencyKey = null) {
   if (
     !data.Valute ||
     !data.Valute.USD ||
+    !data.Valute.RSD ||
     !data.Valute.EUR ||
     !data.Valute.USD.Value ||
     !data.Valute.USD.Previous ||
@@ -56,6 +57,7 @@ export default async function currency(currencyKey = null) {
   } else {
     currencies = `${getCurrencyData(data, 'USD')}
 ${getCurrencyData(data, 'EUR')}
+${getCurrencyData(data, 'RSD')}
 ${getCurrencyData(data, 'GBP')}
 ${getCurrencyData(data, 'GEL')}
 ${getCurrencyData(data, 'CHF')}
