@@ -6,7 +6,7 @@ import settings from '../settings';
 const redisClient = redis.createClient(settings.redis);
 const redisGet = promisify(redisClient.get).bind(redisClient);
 
-const apodUrl = 'https://api.nasa.gov/planetary/apod?api_key=Z9vhewakBf9RUEiQeSfVrotbf6728y1Jhzfh38hf';
+const apodUrl = `https://api.nasa.gov/planetary/apod?api_key=${settings.apodKey}`;
 
 export default async function getNasaApod() {
   let res = await redisGet('nasa-apod');
