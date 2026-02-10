@@ -9,5 +9,6 @@ export default {
     host: '123.123.123.123',
     port: 3719,
     password: 'password',
-  }
+  },
+  apodKey: '',
 };
