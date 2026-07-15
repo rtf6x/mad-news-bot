@@ -98,9 +98,5 @@ func FormatAdvice(result *Advice) (string, error) {
 	if result == nil || result.Advice == "" {
 		return "", fmt.Errorf("empty advice result")
 	}
-	text := result.Advice
-	if result.Disclaimer != "" {
-		text += "\n\n" + result.Disclaimer
-	}
-	return text, nil
+	return result.Advice, nil
 }
