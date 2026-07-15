@@ -1,0 +1,42 @@
+services:
+  server:
+    build: .
+    container_name: mad-news-bot
+    command: ["/app/server"]
+    ports:
+      - "8346:8346"
+    environment:
+      APP_ADDR: "0.0.0.0:8346"
+      BOT_TOKEN: ${BOT_TOKEN}
+      BOT_USERNAME: ${BOT_USERNAME:-madnews_rtf6x_bot}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      NASA_APOD_KEY: ${NASA_APOD_KEY:-}
+      BAD_ADVICE_URL: ${BAD_ADVICE_URL:-http://host.docker.internal:8088}
+      HIRE_CHAT_ID: ${HIRE_CHAT_ID:-324702279}
+    restart: unless-stopped
+
+  worker:
+    build: .
+    container_name: mad-news-bot-worker
+    command: ["/app/worker"]
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      BAD_ADVICE_URL: ${BAD_ADVICE_URL:-http://host.docker.internal:8088}
+      ADVICE_JOB_TTL_SEC: ${ADVICE_JOB_TTL_SEC:-120}
+    restart: unless-stopped
+
+  scheduler:
+    build: .
+    container_name: mad-news-bot-scheduler
+    command: ["/bin/sh", "-c", "while true; do /app/scheduler; sleep 86400; done"]
+    environment:
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      NASA_APOD_KEY: ${NASA_APOD_KEY}
+    restart: unless-stopped

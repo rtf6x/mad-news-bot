@@ -1,0 +1,202 @@
+package telegram
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"strings"
+
+	"mad-news-bot/internal/advicejobs"
+	"mad-news-bot/internal/cache"
+	"mad-news-bot/internal/commands/apod"
+	"mad-news-bot/internal/commands/caradvice"
+	"mad-news-bot/internal/commands/covid"
+	"mad-news-bot/internal/commands/currency"
+	"mad-news-bot/internal/commands/madnews"
+	"mad-news-bot/internal/commands/scope"
+	"mad-news-bot/internal/config"
+)
+
+type Update struct {
+	Message *struct {
+		Text string `json:"text"`
+		Chat struct {
+			ID int64 `json:"id"`
+		} `json:"chat"`
+		From *struct {
+			ID int64 `json:"id"`
+		} `json:"from"`
+	} `json:"message"`
+	Service string `json:"service"`
+}
+
+type Reply struct {
+	Status  string `json:"status"`
+	Code    int    `json:"code"`
+	Message any    `json:"message,omitempty"`
+}
+
+type Router struct {
+	cfg         config.Config
+	tg          *Client
+	redis       *cache.Redis
+	adviceQueue *advicejobs.Queue
+}
+
+func NewRouter(cfg config.Config, tg *Client, redis *cache.Redis, adviceQueue *advicejobs.Queue) *Router {
+	return &Router{cfg: cfg, tg: tg, redis: redis, adviceQueue: adviceQueue}
+}
+
+func (r *Router) Handle(ctx context.Context, body []byte) Reply {
+	var update Update
+	if err := json.Unmarshal(body, &update); err != nil {
+		return Reply{Status: "success", Code: 0}
+	}
+
+	if update.Service == "updateCovid" {
+		msg, err := covid.Format(ctx, r.redis)
+		if err != nil {
+			log.Printf("updateCovid: %v", err)
+			return Reply{Status: "error", Code: 1}
+		}
+		return Reply{Status: "success", Code: 0, Message: msg}
+	}
+
+	if update.Service == "updateApod" {
+		if err := apod.FetchAndStore(ctx, r.redis, r.cfg.NASAAPODKey); err != nil {
+			log.Printf("updateApod: %v", err)
+			return Reply{Status: "error", Code: 1}
+		}
+		return Reply{Status: "success", Code: 0}
+	}
+
+	if update.Message == nil || update.Message.Text == "" || update.Message.Chat.ID == 0 {
+		return Reply{Status: "success", Code: 0}
+	}
+
+	text := NormalizeCommand(update.Message.Text, r.cfg.BotUsername)
+	senderID := int64(0)
+	if update.Message.From != nil {
+		senderID = update.Message.From.ID
+	}
+	chatID := update.Message.Chat.ID
+	log.Printf("[chat message][%d][%d] %s", chatID, senderID, update.Message.Text)
+
+	switch CommandName(text) {
+	case "/prograscope":
+		_ = r.tg.SendMessage(chatID, scope.Prograscope(senderID))
+	case "/nasaapod":
+		r.handleAPOD(ctx, chatID)
+	case "/alcoscope":
+		_ = r.tg.SendMessage(chatID, scope.Alcoscope(senderID))
+	case "/covid19":
+		msg, err := covid.Format(ctx, r.redis)
+		if err != nil {
+			log.Printf("covid19: %v", err)
+			_ = r.tg.SendMessage(chatID, "Не удалось получить данные по COVID-19.")
+		} else {
+			_ = r.tg.SendMessage(chatID, msg)
+		}
+	case "/currency":
+		args := strings.ToUpper(strings.TrimSpace(CommandArgs(text)))
+		msg, err := currency.Format(ctx, args)
+		if err != nil {
+			log.Printf("currency: %v", err)
+			_ = r.tg.SendMessage(chatID, "Не могу получить данные с cbr-xml-daily ;(")
+		} else {
+			_ = r.tg.SendMessage(chatID, msg)
+		}
+	case "/madnews":
+		msg, err := madnews.Generate("ru")
+		if err != nil {
+			log.Printf("madnews: %v", err)
+			_ = r.tg.SendMessage(chatID, "Не удалось сгенерировать новость.")
+		} else {
+			log.Printf("New madness: [%s]", msg)
+			_ = r.tg.SendMessage(chatID, msg)
+		}
+	case "/carAdvice":
+		_ = r.tg.SendMessage(chatID, caradvice.Next())
+	case "/badadvice":
+		r.handleBadAdvice(ctx, chatID, CommandArgs(text))
+	}
+
+	return Reply{Status: "success", Code: 0}
+}
+
+func (r *Router) handleAPOD(ctx context.Context, chatID int64) {
+	res, err := apod.GetCached(ctx, r.redis)
+	if err != nil {
+		_ = r.tg.SendMessage(chatID, "Данные NASA APOD обновляются, попробуйте позже.")
+		return
+	}
+	_ = r.tg.SendPhoto(chatID, res.Photo, res.Message)
+}
+
+func (r *Router) handleBadAdvice(ctx context.Context, chatID int64, prompt string) {
+	prompt = strings.TrimSpace(prompt)
+	if len([]rune(prompt)) < 5 {
+		_ = r.tg.SendMessage(chatID, "Напишите вопрос после команды: /badadvice купить ли мне ламборгини?")
+		return
+	}
+	if r.adviceQueue == nil {
+		_ = r.tg.SendMessage(chatID, "Сервис советов временно недоступен.")
+		return
+	}
+	_ = r.tg.SendMessage(chatID, "Думаю над советом...")
+	if _, err := r.adviceQueue.Enqueue(ctx, chatID, prompt, "ru"); err != nil {
+		log.Printf("badadvice enqueue: %v", err)
+		_ = r.tg.SendMessage(chatID, "Не удалось поставить запрос в очередь.")
+	}
+}
+
+func (r *Router) HandleHire(body []byte) Reply {
+	var payload struct {
+		Points  int `json:"points"`
+		History []struct {
+			Question string `json:"question"`
+			Answer   string `json:"answer"`
+		} `json:"history"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil || len(payload.History) == 0 {
+		return Reply{Status: "error", Code: 1}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Points: %d\n", payload.Points)
+	for _, item := range payload.History {
+		fmt.Fprintf(&b, "%s: %s\n", item.Question, item.Answer)
+	}
+	chatID := int64(0)
+	fmt.Sscanf(r.cfg.HireChatID, "%d", &chatID)
+	if chatID != 0 {
+		_ = r.tg.SendMessage(chatID, b.String())
+	}
+	return Reply{Status: "success", Code: 0}
+}
+
+func (r *Router) HandleWhatsApp() string {
+	msg, err := madnews.Generate("ru")
+	if err != nil {
+		log.Printf("madnews wa: %v", err)
+		msg = "Не удалось сгенерировать новость."
+	} else {
+		log.Printf("New madness: [%s]", msg)
+	}
+	return twimlMessage(msg)
+}
+
+func twimlMessage(text string) string {
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?><Response><Message>%s</Message></Response>`, xmlEscape(text))
+}
+
+func xmlEscape(s string) string {
+	replacer := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		"'", "&apos;",
+		"\"", "&quot;",
+	)
+	return replacer.Replace(s)
+}
