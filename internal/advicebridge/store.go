@@ -42,8 +42,11 @@ func (s *Store) Migrate(ctx context.Context, oldID, newID string) error {
 
 func (s *Store) Pop(ctx context.Context, jobID string) (int64, error) {
 	key := chatKeyPrefix + jobID
-	chatID, err := s.client.GetDel(ctx, key).Result()
+	chatID, err := s.client.Get(ctx, key).Result()
 	if err != nil {
+		return 0, err
+	}
+	if err := s.client.Del(ctx, key).Err(); err != nil {
 		return 0, err
 	}
 	id, err := strconv.ParseInt(chatID, 10, 64)
