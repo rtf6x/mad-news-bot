@@ -8,7 +8,7 @@ export PATH=/usr/local/go/bin:$PATH
 : "${NASA_APOD_KEY:?NASA_APOD_KEY must be set in the Jenkins job environment}"
 
 APP_NAME="mad-news-bot"
-WORKER_NAME="mad-news-bot-worker"
+LEGACY_WORKER_NAME="mad-news-bot-worker"
 
 export APP_ADDR="127.0.0.1:8346"
 export BOT_TOKEN
@@ -22,8 +22,10 @@ export NASA_APOD_KEY
 export ADVICE_JOB_TTL_SEC="120"
 
 go build -ldflags="-s -w" -o mad-news-bot-server ./cmd/server
-go build -ldflags="-s -w" -o mad-news-bot-worker ./cmd/worker
 go build -ldflags="-s -w" -o mad-news-bot-scheduler ./cmd/scheduler
+
+pm2 stop --silent "$LEGACY_WORKER_NAME" || true
+pm2 delete --silent "$LEGACY_WORKER_NAME" || true
 
 if pm2 describe "$APP_NAME" >/dev/null 2>&1; then
   pm2 restart "$APP_NAME" --update-env
@@ -31,16 +33,8 @@ else
   pm2 start ./mad-news-bot-server --name "$APP_NAME"
 fi
 
-if pm2 describe "$WORKER_NAME" >/dev/null 2>&1; then
-  pm2 restart "$WORKER_NAME" --update-env
-else
-  pm2 start ./mad-news-bot-worker --name "$WORKER_NAME"
-fi
-
 pm2 reset "$APP_NAME"
 pm2 flush "$APP_NAME"
-pm2 reset "$WORKER_NAME"
-pm2 flush "$WORKER_NAME"
 pm2 save
 
 ./mad-news-bot-scheduler

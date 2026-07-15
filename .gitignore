@@ -3,7 +3,6 @@
 # Binaries
 bin/
 mad-news-bot-server
-mad-news-bot-worker
 mad-news-bot-scheduler
 
 # Local env

@@ -38,6 +38,10 @@ func main() {
 	adviceBridge := advicebridge.New(redis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
 	router := telegram.NewRouter(cfg, tg, redis, oracleQueue, adviceBridge)
 
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	defer rootCancel()
+	go advicebridge.Listen(rootCtx, tg, adviceBridge, oracleQueue, cfg.OracleRedisDB)
+
 	mux := handlers.NewMux(cfg, redis, router)
 	srv := &http.Server{Addr: cfg.Addr, Handler: mux}
 
@@ -52,7 +56,8 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 	log.Printf("shutting down")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	rootCancel()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(ctx)
+	_ = srv.Shutdown(shutdownCtx)
 }

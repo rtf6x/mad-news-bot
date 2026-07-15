@@ -1,52 +1,19 @@
-package main
+package advicebridge
 
 import (
 	"context"
 	"encoding/json"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	"mad-news-bot/internal/advicebridge"
-	"mad-news-bot/internal/cache"
-	"mad-news-bot/internal/config"
 	"mad-news-bot/internal/oraclequeue"
-	"mad-news-bot/internal/telegram"
 )
 
-func main() {
-	config.LoadDotEnv(".env")
-	cfg := config.Load()
+type Messenger interface {
+	SendMessage(chatID int64, text string) error
+}
 
-	redis, err := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
-	if err != nil {
-		log.Fatalf("redis: %v", err)
-	}
-	defer redis.Close()
-
-	oracleRedis, err := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.OracleRedisDB)
-	if err != nil {
-		log.Fatalf("oracle redis: %v", err)
-	}
-	defer oracleRedis.Close()
-
-	tg := telegram.NewClient(cfg.BotToken)
-	bridge := advicebridge.New(redis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
-	queue := oraclequeue.New(oracleRedis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-		<-stop
-		cancel()
-	}()
-
-	log.Printf("mad-news-bot worker listening on oracle redis db=%d", cfg.OracleRedisDB)
+func Listen(ctx context.Context, tg Messenger, bridge *Store, queue *oraclequeue.Queue, oracleRedisDB int) {
+	log.Printf("advice listener on oracle redis db=%d", oracleRedisDB)
 	sub := queue.Subscribe(ctx)
 	defer sub.Close()
 
@@ -63,7 +30,7 @@ func main() {
 	}
 }
 
-func handleEvent(ctx context.Context, tg *telegram.Client, bridge *advicebridge.Store, payload string) {
+func handleEvent(ctx context.Context, tg Messenger, bridge *Store, payload string) {
 	var ev oraclequeue.Event
 	if err := json.Unmarshal([]byte(payload), &ev); err != nil {
 		log.Printf("advice event parse: %v", err)
