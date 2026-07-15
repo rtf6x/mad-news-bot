@@ -14,8 +14,8 @@ type Config struct {
 	RedisAddr       string
 	RedisPassword   string
 	RedisDB         int
+	OracleRedisDB   int
 	NASAAPODKey     string
-	BadAdviceURL    string
 	AdviceJobTTLSec int
 }
 
@@ -28,8 +28,8 @@ func Load() Config {
 		RedisAddr:       getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
 		RedisDB:         getEnvInt("REDIS_DB", 0),
+		OracleRedisDB:   getEnvInt("ORACLE_REDIS_DB", 3),
 		NASAAPODKey:     os.Getenv("NASA_APOD_KEY"),
-		BadAdviceURL:    strings.TrimRight(getEnv("BAD_ADVICE_URL", "http://127.0.0.1:8088"), "/"),
 		AdviceJobTTLSec: getEnvInt("ADVICE_JOB_TTL_SEC", 120),
 	}
 }

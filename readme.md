@@ -5,13 +5,14 @@ Telegram-бот: безумные новости, гороскопы, валют
 ## Стек
 
 - Go 1.24 (`cmd/server`, `cmd/worker`, `cmd/scheduler`)
-- Redis — кэш NASA APOD, COVID-снапшоты, очередь `/badadvice`
+- Redis db `0` — кэш NASA APOD, COVID, привязка chat_id для `/badadvice`
+- Redis db `3` — очередь bad-advice-oracle (`advice:queue`, pub/sub `advice:events`)
 
 ## Структура
 
 ```
 cmd/server      — webhook API
-cmd/worker      — async /badadvice
+cmd/worker      — слушает advice:events и шлёт ответ в Telegram
 cmd/scheduler   — prefetch NASA APOD
 internal/       — команды, telegram, handlers
 ```
@@ -34,14 +35,19 @@ internal/       — команды, telegram, handlers
 
 ```bash
 cp .env.example .env
-# заполнить BOT_TOKEN, REDIS_*, NASA_APOD_KEY, BAD_ADVICE_URL
+# заполнить BOT_TOKEN, REDIS_*, NASA_APOD_KEY
 
 make tidy
 
 make run       # HTTP API на :8346
-make worker    # обработка /badadvice
+make worker    # pub/sub bad-advice-oracle → Telegram
 make scheduler # разовый prefetch NASA APOD
 ```
+
+## /badadvice
+
+Server кладёт задачу напрямую в Redis-очередь bad-advice-oracle (`advice:queue`, db `3`).
+Worker слушает `advice:events` и отправляет готовый совет в Telegram.
 
 ## NASA APOD
 

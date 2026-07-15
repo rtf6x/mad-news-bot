@@ -12,8 +12,8 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: ${REDIS_DB:-0}
+      ORACLE_REDIS_DB: ${ORACLE_REDIS_DB:-3}
       NASA_APOD_KEY: ${NASA_APOD_KEY:-}
-      BAD_ADVICE_URL: ${BAD_ADVICE_URL:-http://host.docker.internal:8088}
       HIRE_CHAT_ID: ${HIRE_CHAT_ID:-324702279}
     restart: unless-stopped
 
@@ -26,7 +26,7 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: ${REDIS_DB:-0}
-      BAD_ADVICE_URL: ${BAD_ADVICE_URL:-http://host.docker.internal:8088}
+      ORACLE_REDIS_DB: ${ORACLE_REDIS_DB:-3}
       ADVICE_JOB_TTL_SEC: ${ADVICE_JOB_TTL_SEC:-120}
     restart: unless-stopped
 

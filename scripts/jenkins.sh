@@ -17,8 +17,8 @@ export HIRE_CHAT_ID="324702279"
 export REDIS_ADDR="159.69.113.123:63719"
 export REDIS_PASSWORD
 export REDIS_DB="0"
+export ORACLE_REDIS_DB="3"
 export NASA_APOD_KEY
-export BAD_ADVICE_URL="https://bad-advice.rootfox.cc"
 export ADVICE_JOB_TTL_SEC="120"
 
 go build -ldflags="-s -w" -o mad-news-bot-server ./cmd/server

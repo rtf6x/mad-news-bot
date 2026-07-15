@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	"mad-news-bot/internal/advicejobs"
+	"mad-news-bot/internal/advicebridge"
 	"mad-news-bot/internal/cache"
 	"mad-news-bot/internal/commands/apod"
 	"mad-news-bot/internal/commands/caradvice"
@@ -16,6 +16,7 @@ import (
 	"mad-news-bot/internal/commands/madnews"
 	"mad-news-bot/internal/commands/scope"
 	"mad-news-bot/internal/config"
+	"mad-news-bot/internal/oraclequeue"
 )
 
 type Update struct {
@@ -38,14 +39,15 @@ type Reply struct {
 }
 
 type Router struct {
-	cfg         config.Config
-	tg          *Client
-	redis       *cache.Redis
-	adviceQueue *advicejobs.Queue
+	cfg          config.Config
+	tg           *Client
+	redis        *cache.Redis
+	oracleQueue  *oraclequeue.Queue
+	adviceBridge *advicebridge.Store
 }
 
-func NewRouter(cfg config.Config, tg *Client, redis *cache.Redis, adviceQueue *advicejobs.Queue) *Router {
-	return &Router{cfg: cfg, tg: tg, redis: redis, adviceQueue: adviceQueue}
+func NewRouter(cfg config.Config, tg *Client, redis *cache.Redis, oracleQueue *oraclequeue.Queue, adviceBridge *advicebridge.Store) *Router {
+	return &Router{cfg: cfg, tg: tg, redis: redis, oracleQueue: oracleQueue, adviceBridge: adviceBridge}
 }
 
 func (r *Router) Handle(ctx context.Context, body []byte) Reply {
@@ -140,14 +142,20 @@ func (r *Router) handleBadAdvice(ctx context.Context, chatID int64, prompt strin
 		_ = r.tg.SendMessage(chatID, "Напишите вопрос после команды: /badadvice купить ли мне ламборгини?")
 		return
 	}
-	if r.adviceQueue == nil {
+	if r.oracleQueue == nil || r.adviceBridge == nil {
 		_ = r.tg.SendMessage(chatID, "Сервис советов временно недоступен.")
 		return
 	}
 	_ = r.tg.SendMessage(chatID, "Думаю над советом...")
-	if _, err := r.adviceQueue.Enqueue(ctx, chatID, prompt, "ru"); err != nil {
+	jobID, err := r.oracleQueue.Enqueue(ctx, prompt, "ru")
+	if err != nil {
 		log.Printf("badadvice enqueue: %v", err)
 		_ = r.tg.SendMessage(chatID, "Не удалось поставить запрос в очередь.")
+		return
+	}
+	if err := r.adviceBridge.Bind(ctx, jobID, chatID); err != nil {
+		log.Printf("badadvice bind %s: %v", jobID, err)
+		_ = r.tg.SendMessage(chatID, "Не удалось сохранить запрос.")
 	}
 }
 

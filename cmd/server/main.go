@@ -9,10 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"mad-news-bot/internal/advicejobs"
+	"mad-news-bot/internal/advicebridge"
 	"mad-news-bot/internal/cache"
 	"mad-news-bot/internal/config"
 	"mad-news-bot/internal/handlers"
+	"mad-news-bot/internal/oraclequeue"
 	"mad-news-bot/internal/telegram"
 )
 
@@ -26,9 +27,16 @@ func main() {
 	}
 	defer redis.Close()
 
+	oracleRedis, err := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.OracleRedisDB)
+	if err != nil {
+		log.Fatalf("oracle redis: %v", err)
+	}
+	defer oracleRedis.Close()
+
 	tg := telegram.NewClient(cfg.BotToken)
-	adviceQueue := advicejobs.New(redis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
-	router := telegram.NewRouter(cfg, tg, redis, adviceQueue)
+	oracleQueue := oraclequeue.New(oracleRedis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
+	adviceBridge := advicebridge.New(redis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
+	router := telegram.NewRouter(cfg, tg, redis, oracleQueue, adviceBridge)
 
 	mux := handlers.NewMux(cfg, redis, router)
 	srv := &http.Server{Addr: cfg.Addr, Handler: mux}
