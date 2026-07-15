@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"mad-news-bot/internal/cache"
@@ -29,6 +30,10 @@ func main() {
 	defer cancel()
 
 	if err := apod.FetchAndStore(ctx, redis, cfg.NASAAPODKey); err != nil {
+		if strings.Contains(err.Error(), "keeping stale cache") {
+			log.Printf("warning: %v", err)
+			return
+		}
 		log.Fatalf("apod prefetch failed: %v", err)
 	}
 	log.Printf("nasa apod cached successfully")

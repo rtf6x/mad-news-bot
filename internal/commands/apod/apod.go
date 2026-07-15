@@ -13,9 +13,13 @@ import (
 )
 
 const (
-	cacheKey = "nasa-apod"
-	cacheTTL = 48 * time.Hour
+	cacheKey     = "nasa-apod"
+	cacheTTL     = 48 * time.Hour
+	nasaAPODURL  = "https://api.nasa.gov/planetary/apod"
+	fetchTimeout = 45 * time.Second
 )
+
+var httpClient = &http.Client{Timeout: fetchTimeout}
 
 type APOD struct {
 	Copyright   string `json:"copyright"`
@@ -32,9 +36,19 @@ type Result struct {
 	Message string `json:"message"`
 }
 
+type nasaErrorResponse struct {
+	Error struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
 func FetchAndStore(ctx context.Context, redis *cache.Redis, apiKey string) error {
 	item, err := fetchFromNASA(ctx, apiKey)
 	if err != nil {
+		if _, cacheErr := GetCached(ctx, redis); cacheErr == nil {
+			return fmt.Errorf("nasa fetch failed, keeping stale cache: %w", err)
+		}
 		return err
 	}
 	raw, err := json.Marshal(item)
@@ -73,28 +87,55 @@ func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error)
 }
 
 func fetchFromNASA(ctx context.Context, apiKey string) (APOD, error) {
-	url := fmt.Sprintf("https://api.nasa.gov/planetary/apod?api_key=%s", apiKey)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, nasaAPODURL, nil)
 	if err != nil {
 		return APOD{}, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	q := req.URL.Query()
+	q.Set("api_key", apiKey)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		return APOD{}, err
+		return APOD{}, fmt.Errorf("nasa apod request: %w", err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return APOD{}, err
+		return APOD{}, fmt.Errorf("nasa apod read body: %w", err)
 	}
+
+	if resp.StatusCode >= 300 {
+		return APOD{}, parseNASAError(resp.StatusCode, body)
+	}
+
 	var item APOD
 	if err := json.Unmarshal(body, &item); err != nil {
-		return APOD{}, err
+		return APOD{}, parseNASAError(resp.StatusCode, body)
 	}
 	if item.URL == "" {
-		return APOD{}, fmt.Errorf("nasa apod: empty response")
+		return APOD{}, fmt.Errorf("nasa apod: empty url in response")
 	}
 	return item, nil
+}
+
+func parseNASAError(status int, body []byte) error {
+	trimmed := strings.TrimSpace(string(body))
+	if trimmed == "" {
+		return fmt.Errorf("nasa apod: status %d, empty body", status)
+	}
+
+	var apiErr nasaErrorResponse
+	if json.Unmarshal(body, &apiErr) == nil && apiErr.Error.Message != "" {
+		return fmt.Errorf("nasa apod: status %d: %s", status, apiErr.Error.Message)
+	}
+
+	snippet := trimmed
+	if len(snippet) > 160 {
+		snippet = snippet[:160] + "..."
+	}
+	return fmt.Errorf("nasa apod: status %d, non-json body: %s", status, snippet)
 }
 
 func format(item APOD) Result {
