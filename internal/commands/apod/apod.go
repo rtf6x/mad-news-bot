@@ -3,6 +3,7 @@ package apod
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,6 +43,13 @@ type nasaErrorResponse struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
+
+type nasaLegacyErrorResponse struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+var errNoDataForDate = errors.New("nasa apod: no data for date")
 
 func FetchAndStore(ctx context.Context, redis *cache.Redis, apiKey string) error {
 	item, err := fetchFromNASA(ctx, apiKey)
@@ -87,12 +95,33 @@ func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error)
 }
 
 func fetchFromNASA(ctx context.Context, apiKey string) (APOD, error) {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		loc = time.UTC
+	}
+	today := time.Now().In(loc)
+	for daysAgo := 0; daysAgo < 4; daysAgo++ {
+		date := today.AddDate(0, 0, -daysAgo).Format("2006-01-02")
+		item, err := fetchFromNASAForDate(ctx, apiKey, date)
+		if err == nil {
+			return item, nil
+		}
+		if errors.Is(err, errNoDataForDate) {
+			continue
+		}
+		return APOD{}, err
+	}
+	return APOD{}, fmt.Errorf("nasa apod: no data for recent dates")
+}
+
+func fetchFromNASAForDate(ctx context.Context, apiKey, date string) (APOD, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, nasaAPODURL, nil)
 	if err != nil {
 		return APOD{}, err
 	}
 	q := req.URL.Query()
 	q.Set("api_key", apiKey)
+	q.Set("date", date)
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := httpClient.Do(req)
@@ -106,6 +135,9 @@ func fetchFromNASA(ctx context.Context, apiKey string) (APOD, error) {
 		return APOD{}, fmt.Errorf("nasa apod read body: %w", err)
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		return APOD{}, errNoDataForDate
+	}
 	if resp.StatusCode >= 300 {
 		return APOD{}, parseNASAError(resp.StatusCode, body)
 	}
@@ -129,6 +161,11 @@ func parseNASAError(status int, body []byte) error {
 	var apiErr nasaErrorResponse
 	if json.Unmarshal(body, &apiErr) == nil && apiErr.Error.Message != "" {
 		return fmt.Errorf("nasa apod: status %d: %s", status, apiErr.Error.Message)
+	}
+
+	var legacyErr nasaLegacyErrorResponse
+	if json.Unmarshal(body, &legacyErr) == nil && legacyErr.Msg != "" {
+		return fmt.Errorf("nasa apod: status %d: %s", status, legacyErr.Msg)
 	}
 
 	snippet := trimmed
