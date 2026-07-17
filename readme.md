@@ -1,75 +1,86 @@
 # mad-news-bot
 
-Telegram-бот: безумные новости, гороскопы, валюты, NASA APOD и плохие советы от [bad-advice-oracle](https://github.com/rtf6x/bad-advice-oracle).
+Telegram bot: mad news, horoscopes, currency rates, NASA APOD, and bad advice from [bad-advice-oracle](https://github.com/rtf6x/bad-advice-oracle).
 
-## Стек
+## Stack
 
 - Go 1.24 (`cmd/server`, `cmd/scheduler`)
-- Redis db `0` — кэш NASA APOD, COVID, привязка chat_id для `/badadvice`
-- Redis db `3` — очередь bad-advice-oracle (`advice:queue`, pub/sub `advice:events`)
+- Redis db `0` — NASA APOD cache, COVID data, chat_id mapping for `/badadvice`
+- Redis db `3` — bad-advice-oracle queue (`advice:queue`, pub/sub `advice:events`)
 
-## Структура
+## Layout
 
 ```
 cmd/server      — webhook API + advice listener
-cmd/scheduler   — prefetch NASA APOD
-internal/       — команды, telegram, handlers
+cmd/scheduler   — NASA APOD prefetch
+internal/       — commands, telegram, handlers
 ```
 
-## Команды бота
+## Bot commands
 
-| Команда | Описание |
-|---------|----------|
-| `/madnews` | Сгенерировать безумную новость |
-| `/nasaapod` | Фото дня NASA (из кэша, без ожидания API) |
-| `/covid19` | Статистика COVID-19 |
-| `/prograscope` | Гороскоп программиста |
-| `/alcoscope` | Алкогороскоп |
-| `/currency` | Курсы валют ЦБ РФ |
-| `/currency USD` | Одна валюта |
-| `/carAdvice` | Совет по покупке авто |
-| `/badadvice <вопрос>` | Плохой совет от LLM (async) |
+| Command | Description |
+|---------|-------------|
+| `/madnews` | Generate a mad news story |
+| `/nasaapod` | NASA Astronomy Picture of the Day (from cache, no API wait) |
+| `/covid19` | COVID-19 statistics |
+| `/prograscope` | Programmer horoscope |
+| `/alcoscope` | Drinking horoscope |
+| `/currency` | CBR exchange rates |
+| `/currency USD` | Single currency rate |
+| `/carAdvice` | Car buying advice |
+| `/badadvice <question>` | Bad advice from an LLM (async) |
 
-## Локальный запуск
+## Local development
 
 ```bash
 cp .env.example .env
-# заполнить BOT_TOKEN, REDIS_*, NASA_APOD_KEY
+# fill in BOT_TOKEN, REDIS_*, NASA_APOD_KEY
 
 make tidy
 
-make run       # HTTP API + advice listener на :8346
-make scheduler # разовый prefetch NASA APOD
+make run       # HTTP API + advice listener on :8346
+make scheduler # one-off NASA APOD prefetch
 ```
 
 ## /badadvice
 
-Server кладёт задачу в Redis-очередь bad-advice-oracle (`advice:queue`, db `3`)
-и в том же процессе слушает `advice:events`, отправляя ответ в Telegram.
+The server enqueues a job in the bad-advice-oracle Redis queue (`advice:queue`, db `3`)
+and listens to `advice:events` in the same process, sending the reply to Telegram.
 
 ## NASA APOD
 
-`/nasaapod` читает только Redis. Scheduler (`cmd/scheduler`) раз в сутки тянет NASA API и кладёт результат в ключ `nasa-apod`.
+`/nasaapod` reads from Redis only. The scheduler (`cmd/scheduler`) fetches NASA API once a day and stores the result under the `nasa-apod` key.
 
-На проде cron ставится из `scripts/jenkins.sh` (06:00). Можно дернуть webhook:
+In production, cron is configured by `scripts/jenkins.sh` (06:00). You can also trigger an update via webhook:
 
 ```json
 POST /api/webhooks/mad-news
 {"service":"updateApod"}
 ```
 
-## Деплой
+## Deployment
+
+In production, the project is built and deployed on the server by **Jenkins**. Job Execute shell:
 
 ```bash
-scripts/jenkins.sh   # pm2: server + cron scheduler
+#!/bin/bash
+./scripts/jenkins.sh
 ```
 
-Или Docker:
+`scripts/jenkins.sh` builds binaries, restarts the server via pm2, and sets up a cron job for the scheduler (06:00).
+
+Locally (without Jenkins):
+
+```bash
+scripts/jenkins.sh
+```
+
+Or with Docker:
 
 ```bash
 docker compose up -d --build
 ```
 
-## Переменные окружения
+## Environment variables
 
-См. `.env.example`.
+See `.env.example`.
