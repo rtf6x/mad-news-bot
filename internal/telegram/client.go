@@ -8,8 +8,9 @@ import (
 )
 
 type Client struct {
-	token string
-	http  *http.Client
+	token   string
+	http    *http.Client
+	apiBase string
 }
 
 func NewClient(token string) *Client {
@@ -23,7 +24,7 @@ func (c *Client) SendMessage(chatID int64, text string) error {
 	if c.token == "" {
 		return fmt.Errorf("bot token is empty")
 	}
-	endpoint := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", c.token)
+	endpoint := fmt.Sprintf("%s/bot%s/sendMessage", c.apiBaseOrDefault(), c.token)
 	resp, err := c.http.PostForm(endpoint, url.Values{
 		"chat_id": {fmt.Sprintf("%d", chatID)},
 		"text":    {text},
@@ -42,7 +43,7 @@ func (c *Client) SendPhoto(chatID int64, photoURL, caption string) error {
 	if c.token == "" {
 		return fmt.Errorf("bot token is empty")
 	}
-	endpoint := fmt.Sprintf("https://api.telegram.org/bot%s/sendPhoto", c.token)
+	endpoint := fmt.Sprintf("%s/bot%s/sendPhoto", c.apiBaseOrDefault(), c.token)
 	resp, err := c.http.PostForm(endpoint, url.Values{
 		"chat_id": {fmt.Sprintf("%d", chatID)},
 		"photo":   {photoURL},
@@ -56,6 +57,13 @@ func (c *Client) SendPhoto(chatID int64, photoURL, caption string) error {
 		return fmt.Errorf("telegram sendPhoto: %s", resp.Status)
 	}
 	return nil
+}
+
+func (c *Client) apiBaseOrDefault() string {
+	if c.apiBase != "" {
+		return c.apiBase
+	}
+	return "https://api.telegram.org"
 }
 
 func NormalizeCommand(text, botUsername string) string {

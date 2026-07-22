@@ -38,6 +38,16 @@ func (h *WebhookHandler) postHire(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, result)
 }
 
+func (h *WebhookHandler) postNotify(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "bad request"})
+		return
+	}
+	result := h.Router.HandleNotify(body)
+	WriteJSON(w, http.StatusOK, result)
+}
+
 func (h *WebhookHandler) postWhatsApp(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err == nil {
 		log.Printf("[WA] body: %s", r.FormValue("Body"))
@@ -76,6 +86,7 @@ func NewMux(cfg config.Config, redis *cache.Redis, router *telegram.Router) http
 	mux.HandleFunc("POST /api/webhooks/vovan", h.postReply)
 	mux.HandleFunc("POST /api/webhooks/mad-news-wa", h.postWhatsApp)
 	mux.HandleFunc("POST /api/webhooks/hire", h.postHire)
+	mux.HandleFunc("POST /api/webhooks/notify", h.postNotify)
 	mux.HandleFunc("GET /api/webhooks/covid19", h.getCovid19)
 	mux.HandleFunc("GET /api/webhooks/nasaapod", h.getNASAAPOD)
 	return WithCORS(mux)

@@ -159,6 +159,29 @@ func (r *Router) handleBadAdvice(ctx context.Context, chatID int64, prompt strin
 	}
 }
 
+func (r *Router) HandleNotify(body []byte) Reply {
+	var payload struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return Reply{Status: "error", Code: 1}
+	}
+	text := strings.TrimSpace(payload.Text)
+	if text == "" {
+		return Reply{Status: "error", Code: 1}
+	}
+	chatID := int64(0)
+	fmt.Sscanf(r.cfg.HireChatID, "%d", &chatID)
+	if chatID == 0 {
+		return Reply{Status: "error", Code: 1}
+	}
+	if err := r.tg.SendMessage(chatID, text); err != nil {
+		log.Printf("notify: %v", err)
+		return Reply{Status: "error", Code: 1}
+	}
+	return Reply{Status: "success", Code: 0}
+}
+
 func (r *Router) HandleHire(body []byte) Reply {
 	var payload struct {
 		Points  int `json:"points"`
