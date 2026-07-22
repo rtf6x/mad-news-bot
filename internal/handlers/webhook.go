@@ -78,5 +78,5 @@ func NewMux(cfg config.Config, redis *cache.Redis, router *telegram.Router) http
 	mux.HandleFunc("POST /api/webhooks/hire", h.postHire)
 	mux.HandleFunc("GET /api/webhooks/covid19", h.getCovid19)
 	mux.HandleFunc("GET /api/webhooks/nasaapod", h.getNASAAPOD)
-	return mux
+	return WithCORS(mux)
 }
