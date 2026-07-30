@@ -11,6 +11,7 @@ import (
 
 	"mad-news-bot/internal/advicebridge"
 	"mad-news-bot/internal/cache"
+	"mad-news-bot/internal/chatlog"
 	"mad-news-bot/internal/config"
 	"mad-news-bot/internal/handlers"
 	"mad-news-bot/internal/oraclequeue"
@@ -18,6 +19,7 @@ import (
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
 	config.LoadDotEnv(".env")
 	cfg := config.Load()
 
@@ -36,7 +38,14 @@ func main() {
 	tg := telegram.NewClient(cfg.BotToken)
 	oracleQueue := oraclequeue.New(oracleRedis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
 	adviceBridge := advicebridge.New(redis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
-	router := telegram.NewRouter(cfg, tg, redis, oracleQueue, adviceBridge)
+
+	chatLogger, err := chatlog.New(cfg.ChatLogDir)
+	if err != nil {
+		log.Fatalf("chat log: %v", err)
+	}
+	defer chatLogger.Close()
+
+	router := telegram.NewRouter(cfg, tg, redis, oracleQueue, adviceBridge, chatLogger)
 
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	defer rootCancel()

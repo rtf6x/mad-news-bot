@@ -33,8 +33,9 @@ type APOD struct {
 }
 
 type Result struct {
-	Photo   string `json:"photo"`
-	Message string `json:"message"`
+	Photo     string `json:"photo"`
+	Message   string `json:"message"`
+	MediaType string `json:"media_type,omitempty"`
 }
 
 type nasaErrorResponse struct {
@@ -175,6 +176,16 @@ func parseNASAError(status int, body []byte) error {
 	return fmt.Errorf("nasa apod: status %d, non-json body: %s", status, snippet)
 }
 
+func isVideoAPOD(item APOD) bool {
+	if item.MediaType == "video" {
+		return true
+	}
+	if item.MediaType == "image" {
+		return false
+	}
+	return strings.Contains(item.URL, "youtube.com") || strings.Contains(item.URL, "youtu.be")
+}
+
 func format(item APOD) Result {
 	firstSentence := item.Explanation
 	if idx := strings.Index(item.Explanation, "."); idx >= 0 {
@@ -184,7 +195,14 @@ func format(item APOD) Result {
 	if copyright == "" {
 		copyright = "NASA"
 	}
+
+	if isVideoAPOD(item) {
+		message := fmt.Sprintf("%s (%s)\n\n%s\n\nWatch: %s\n(c) %s\n",
+			item.Title, item.Date, firstSentence, item.URL, copyright)
+		return Result{Message: message, MediaType: "video"}
+	}
+
 	message := fmt.Sprintf("%s (%s)\n\n%s\n\nHi-Res: %s\n(c) %s\n",
 		item.Title, item.Date, firstSentence, item.HDURL, copyright)
-	return Result{Photo: item.URL, Message: message}
+	return Result{Photo: item.URL, Message: message, MediaType: "image"}
 }

@@ -17,6 +17,7 @@ type Config struct {
 	OracleRedisDB   int
 	NASAAPODKey     string
 	AdviceJobTTLSec int
+	ChatLogDir      string
 }
 
 func Load() Config {
@@ -31,6 +32,7 @@ func Load() Config {
 		OracleRedisDB:   getEnvInt("ORACLE_REDIS_DB", 3),
 		NASAAPODKey:     os.Getenv("NASA_APOD_KEY"),
 		AdviceJobTTLSec: getEnvInt("ADVICE_JOB_TTL_SEC", 120),
+		ChatLogDir:      getEnv("CHAT_LOG_DIR", "logs/chats"),
 	}
 }
 

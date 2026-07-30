@@ -9,7 +9,7 @@ import (
 )
 
 func TestHandleNotify_rejectsInvalidPayload(t *testing.T) {
-	router := NewRouter(config.Config{HireChatID: "123"}, NewClient("token"), nil, nil, nil)
+	router := NewRouter(config.Config{HireChatID: "123"}, NewClient("token"), nil, nil, nil, nil)
 
 	for _, body := range []string{`{}`, `{"text":""}`, `{"text":"   "}`, `invalid`} {
 		reply := router.HandleNotify([]byte(body))

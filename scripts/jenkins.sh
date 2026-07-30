@@ -20,6 +20,7 @@ export REDIS_DB="0"
 export ORACLE_REDIS_DB="3"
 export NASA_APOD_KEY
 export ADVICE_JOB_TTL_SEC="120"
+export CHAT_LOG_DIR="$HOME/mad-news-bot-chat-logs"
 
 go build -ldflags="-s -w" -o mad-news-bot-server ./cmd/server
 go build -ldflags="-s -w" -o mad-news-bot-scheduler ./cmd/scheduler

@@ -8,6 +8,9 @@ mad-news-bot-scheduler
 # Local env
 .env
 
+# Chat message logs
+logs/
+
 # IDE
 .idea/
 .vscode/*
