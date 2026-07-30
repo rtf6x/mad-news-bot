@@ -34,7 +34,7 @@ func (h *WebhookHandler) postHire(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "bad request"})
 		return
 	}
-	result := h.Router.HandleHire(body)
+	result := h.Router.HandleHire(body, ClientIP(r))
 	WriteJSON(w, http.StatusOK, result)
 }
 

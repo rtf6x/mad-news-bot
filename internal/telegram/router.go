@@ -223,7 +223,7 @@ func (r *Router) HandleNotify(body []byte) Reply {
 	return Reply{Status: "success", Code: 0}
 }
 
-func (r *Router) HandleHire(body []byte) Reply {
+func (r *Router) HandleHire(body []byte, clientIP string) Reply {
 	var payload struct {
 		Points  int `json:"points"`
 		History []struct {
@@ -235,6 +235,9 @@ func (r *Router) HandleHire(body []byte) Reply {
 		return Reply{Status: "error", Code: 1}
 	}
 	var b strings.Builder
+	if clientIP != "" {
+		fmt.Fprintf(&b, "IP: %s\n", clientIP)
+	}
 	fmt.Fprintf(&b, "Points: %d\n", payload.Points)
 	for _, item := range payload.History {
 		fmt.Fprintf(&b, "%s: %s\n", item.Question, item.Answer)
