@@ -29,15 +29,12 @@ func main() {
 	}
 	defer redis.Close()
 
-	oracleRedis, err := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.OracleRedisDB)
-	if err != nil {
-		log.Fatalf("oracle redis: %v", err)
-	}
-	defer oracleRedis.Close()
-
 	tg := telegram.NewClient(cfg.BotToken)
-	oracleQueue := oraclequeue.New(oracleRedis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
-	adviceBridge := advicebridge.New(redis.Client(), time.Duration(cfg.AdviceJobTTLSec)*time.Second)
+	oracleQueue, err := oraclequeue.NewRabbit(cfg.RabbitURL)
+	if err != nil {
+		log.Fatalf("rabbit: %v", err)
+	}
+	defer oracleQueue.Close()
 
 	chatLogger, err := chatlog.New(cfg.ChatLogDir)
 	if err != nil {
@@ -45,11 +42,11 @@ func main() {
 	}
 	defer chatLogger.Close()
 
-	router := telegram.NewRouter(cfg, tg, redis, oracleQueue, adviceBridge, chatLogger)
+	router := telegram.NewRouter(cfg, tg, redis, oracleQueue, chatLogger)
 
 	rootCtx, rootCancel := context.WithCancel(context.Background())
 	defer rootCancel()
-	go advicebridge.Listen(rootCtx, tg, adviceBridge, oracleQueue, cfg.OracleRedisDB)
+	go advicebridge.Listen(rootCtx, tg, oracleQueue)
 
 	mux := handlers.NewMux(cfg, redis, router)
 	srv := &http.Server{Addr: cfg.Addr, Handler: mux}

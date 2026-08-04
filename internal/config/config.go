@@ -14,7 +14,7 @@ type Config struct {
 	RedisAddr       string
 	RedisPassword   string
 	RedisDB         int
-	OracleRedisDB   int
+	RabbitURL       string
 	NASAAPODKey     string
 	AdviceJobTTLSec int
 	ChatLogDir      string
@@ -29,7 +29,7 @@ func Load() Config {
 		RedisAddr:       getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:   os.Getenv("REDIS_PASSWORD"),
 		RedisDB:         getEnvInt("REDIS_DB", 0),
-		OracleRedisDB:   getEnvInt("ORACLE_REDIS_DB", 3),
+		RabbitURL:       getEnv("RABBIT_URL", "amqp://rootfox@127.0.0.1:5672/"),
 		NASAAPODKey:     os.Getenv("NASA_APOD_KEY"),
 		AdviceJobTTLSec: getEnvInt("ADVICE_JOB_TTL_SEC", 120),
 		ChatLogDir:      getEnv("CHAT_LOG_DIR", "logs/chats"),

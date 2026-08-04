@@ -1,11 +1,8 @@
 package oraclequeue
 
-const (
-	QueueKey      = "advice:queue"
-	ProcessingKey = "advice:processing"
-	JobKeyPrefix  = "advice:job:"
-	EventsChannel = "advice:events"
+import "fmt"
 
+const (
 	StatusQueued     = "queued"
 	StatusProcessing = "processing"
 	StatusDone       = "done"
@@ -29,6 +26,7 @@ type Job struct {
 	Prompt  string  `json:"prompt"`
 	Lang    string  `json:"lang"`
 	Attempt int     `json:"attempt,omitempty"`
+	ChatID  int64   `json:"chat_id,omitempty"`
 	Error   string  `json:"error,omitempty"`
 	Result  *Advice `json:"result,omitempty"`
 }
@@ -39,6 +37,14 @@ type Event struct {
 	QueuePosition int     `json:"queue_position"`
 	Attempt       int     `json:"attempt,omitempty"`
 	RetryJobID    string  `json:"retry_job_id,omitempty"`
+	ChatID        int64   `json:"chat_id,omitempty"`
 	Error         string  `json:"error,omitempty"`
 	Result        *Advice `json:"result,omitempty"`
+}
+
+func FormatAdvice(result *Advice) (string, error) {
+	if result == nil || result.Advice == "" {
+		return "", fmt.Errorf("empty advice result")
+	}
+	return result.Advice, nil
 }
