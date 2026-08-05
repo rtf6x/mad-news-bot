@@ -1,12 +1,12 @@
 #!/bin/bash
-# Jenkins → Execute shell
+# dplo deploy script
 set -euo pipefail
 export PATH=/usr/local/go/bin:$PATH
 
-: "${BOT_TOKEN:?BOT_TOKEN must be set in the Jenkins job environment}"
-: "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in the Jenkins job environment}"
-: "${NASA_APOD_KEY:?NASA_APOD_KEY must be set in the Jenkins job environment}"
-: "${RABBIT_URL:?RABBIT_URL must be set in the Jenkins job environment}"
+: "${BOT_TOKEN:?BOT_TOKEN must be set in the dplo project environment}"
+: "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in the dplo project environment}"
+: "${NASA_APOD_KEY:?NASA_APOD_KEY must be set in the dplo project environment}"
+: "${RABBIT_URL:?RABBIT_URL must be set in the dplo project environment}"
 
 APP_NAME="mad-news-bot"
 LEGACY_WORKER_NAME="mad-news-bot-worker"
