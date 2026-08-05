@@ -51,7 +51,7 @@ and listens to `advice:events` in the same process, sending the reply to Telegra
 
 `/nasaapod` reads from Redis only. The scheduler (`cmd/scheduler`) fetches NASA API once a day and stores the result under the `nasa-apod` key.
 
-In production, cron is configured by `scripts/jenkins.sh` (06:00). You can also trigger an update via webhook:
+In production, cron is configured by `scripts/build.sh` (06:00). You can also trigger an update via webhook:
 
 ```json
 POST /api/webhooks/mad-news
@@ -64,15 +64,15 @@ In production, the project is built and deployed on the server by **Jenkins**. J
 
 ```bash
 #!/bin/bash
-./scripts/jenkins.sh
+./scripts/build.sh
 ```
 
-`scripts/jenkins.sh` builds binaries, restarts the server via pm2, and sets up a cron job for the scheduler (06:00).
+`scripts/build.sh` builds binaries, restarts the server via pm2, and sets up a cron job for the scheduler (06:00).
 
 Locally (without Jenkins):
 
 ```bash
-scripts/jenkins.sh
+scripts/build.sh
 ```
 
 Or with Docker:
