@@ -3,7 +3,6 @@ package apod
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,11 +15,13 @@ import (
 const (
 	cacheKey     = "nasa-apod"
 	cacheTTL     = 10 * 24 * time.Hour
-	nasaAPODURL  = "https://api.nasa.gov/planetary/apod"
 	fetchTimeout = 45 * time.Second
 )
 
-var httpClient = &http.Client{Timeout: fetchTimeout}
+var (
+	nasaAPODURL = "https://api.nasa.gov/planetary/apod"
+	httpClient  = &http.Client{Timeout: fetchTimeout}
+)
 
 type APOD struct {
 	Copyright   string `json:"copyright"`
@@ -49,8 +50,6 @@ type nasaLegacyErrorResponse struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
 }
-
-var errNoDataForDate = errors.New("nasa apod: no data for date")
 
 func FetchAndStore(ctx context.Context, redis *cache.Redis, apiKey string) error {
 	item, err := fetchFromNASA(ctx, apiKey)
@@ -101,28 +100,20 @@ func fetchFromNASA(ctx context.Context, apiKey string) (APOD, error) {
 		loc = time.UTC
 	}
 	today := time.Now().In(loc)
-	for daysAgo := 0; daysAgo < 4; daysAgo++ {
-		date := today.AddDate(0, 0, -daysAgo).Format("2006-01-02")
-		item, err := fetchFromNASAForDate(ctx, apiKey, date)
-		if err == nil {
-			return item, nil
-		}
-		if errors.Is(err, errNoDataForDate) {
-			continue
-		}
-		return APOD{}, err
-	}
-	return APOD{}, fmt.Errorf("nasa apod: no data for recent dates")
+	end := today.Format("2006-01-02")
+	start := today.AddDate(0, 0, -2).Format("2006-01-02")
+	return fetchFromNASARange(ctx, apiKey, start, end)
 }
 
-func fetchFromNASAForDate(ctx context.Context, apiKey, date string) (APOD, error) {
+func fetchFromNASARange(ctx context.Context, apiKey, startDate, endDate string) (APOD, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, nasaAPODURL, nil)
 	if err != nil {
 		return APOD{}, err
 	}
 	q := req.URL.Query()
 	q.Set("api_key", apiKey)
-	q.Set("date", date)
+	q.Set("start_date", startDate)
+	q.Set("end_date", endDate)
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := httpClient.Do(req)
@@ -136,21 +127,31 @@ func fetchFromNASAForDate(ctx context.Context, apiKey, date string) (APOD, error
 		return APOD{}, fmt.Errorf("nasa apod read body: %w", err)
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return APOD{}, errNoDataForDate
-	}
 	if resp.StatusCode >= 300 {
 		return APOD{}, parseNASAError(resp.StatusCode, body)
 	}
 
-	var item APOD
-	if err := json.Unmarshal(body, &item); err != nil {
+	var items []APOD
+	if err := json.Unmarshal(body, &items); err != nil {
 		return APOD{}, parseNASAError(resp.StatusCode, body)
 	}
-	if item.URL == "" {
-		return APOD{}, fmt.Errorf("nasa apod: empty url in response")
+	return pickLatestAPOD(items)
+}
+
+func pickLatestAPOD(items []APOD) (APOD, error) {
+	var latest APOD
+	for _, item := range items {
+		if item.URL == "" {
+			continue
+		}
+		if item.Date > latest.Date {
+			latest = item
+		}
 	}
-	return item, nil
+	if latest.URL == "" {
+		return APOD{}, fmt.Errorf("nasa apod: no usable items in range")
+	}
+	return latest, nil
 }
 
 func parseNASAError(status int, body []byte) error {

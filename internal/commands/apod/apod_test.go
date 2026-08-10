@@ -1,6 +1,10 @@
 package apod
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +14,78 @@ func TestCacheTTLIsTenDays(t *testing.T) {
 	want := 10 * 24 * time.Hour
 	if cacheTTL != want {
 		t.Fatalf("cacheTTL: got %v, want %v", cacheTTL, want)
+	}
+}
+
+func TestPickLatestAPOD(t *testing.T) {
+	got, err := pickLatestAPOD([]APOD{
+		{Date: "2026-08-08", Title: "A", URL: "https://a.example/a.jpg"},
+		{Date: "2026-08-10", Title: "C", URL: "https://c.example/c.jpg"},
+		{Date: "2026-08-09", Title: "B", URL: "https://b.example/b.jpg"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Date != "2026-08-10" || got.Title != "C" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestPickLatestAPODEmpty(t *testing.T) {
+	if _, err := pickLatestAPOD(nil); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestFetchFromNASAUsesThreeDayRangeOnce(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.URL.Query().Get("api_key") != "test-key" {
+			t.Errorf("api_key: %q", r.URL.Query().Get("api_key"))
+		}
+		if r.URL.Query().Get("date") != "" {
+			t.Errorf("unexpected date param: %q", r.URL.Query().Get("date"))
+		}
+		start := r.URL.Query().Get("start_date")
+		end := r.URL.Query().Get("end_date")
+		if start == "" || end == "" {
+			t.Errorf("missing range: start=%q end=%q", start, end)
+		}
+		loc, err := time.LoadLocation("America/New_York")
+		if err != nil {
+			t.Fatal(err)
+		}
+		today := time.Now().In(loc)
+		wantEnd := today.Format("2006-01-02")
+		wantStart := today.AddDate(0, 0, -2).Format("2006-01-02")
+		if start != wantStart || end != wantEnd {
+			t.Errorf("range: got %s..%s want %s..%s", start, end, wantStart, wantEnd)
+		}
+		_ = json.NewEncoder(w).Encode([]APOD{
+			{Date: wantStart, Title: "Old", URL: "https://example/old.jpg", MediaType: "image"},
+			{Date: wantEnd, Title: "New", URL: "https://example/new.jpg", MediaType: "image"},
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	prevURL, prevClient := nasaAPODURL, httpClient
+	nasaAPODURL = srv.URL
+	httpClient = srv.Client()
+	t.Cleanup(func() {
+		nasaAPODURL = prevURL
+		httpClient = prevClient
+	})
+
+	item, err := fetchFromNASA(context.Background(), "test-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("calls: got %d want 1", calls)
+	}
+	if item.Title != "New" {
+		t.Fatalf("expected latest day, got %+v", item)
 	}
 }
 
