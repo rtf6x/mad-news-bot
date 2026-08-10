@@ -3,7 +3,15 @@ package apod
 import (
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestCacheTTLIsTenDays(t *testing.T) {
+	want := 10 * 24 * time.Hour
+	if cacheTTL != want {
+		t.Fatalf("cacheTTL: got %v, want %v", cacheTTL, want)
+	}
+}
 
 func TestFormatImageAPOD(t *testing.T) {
 	res := format(APOD{

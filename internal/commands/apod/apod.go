@@ -15,7 +15,7 @@ import (
 
 const (
 	cacheKey     = "nasa-apod"
-	cacheTTL     = 48 * time.Hour
+	cacheTTL     = 10 * 24 * time.Hour
 	nasaAPODURL  = "https://api.nasa.gov/planetary/apod"
 	fetchTimeout = 45 * time.Second
 )
