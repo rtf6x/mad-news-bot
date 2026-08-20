@@ -8,44 +8,67 @@ import (
 	"mad-news-bot/internal/commands/apod"
 )
 
-func TestDeliverAPOD_sendsVideo(t *testing.T) {
-	var gotPath, gotVideo, gotCaption, gotPhoto string
+func TestDeliverAPOD_sendsPhotoWhenFramePresent(t *testing.T) {
+	var gotPath, gotPhoto, gotCaption, gotText, gotVideo string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		gotPath = r.URL.Path
-		gotVideo = r.FormValue("video")
-		gotCaption = r.FormValue("caption")
 		gotPhoto = r.FormValue("photo")
+		gotCaption = r.FormValue("caption")
+		gotText = r.FormValue("text")
+		gotVideo = r.FormValue("video")
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(srv.Close)
 
 	r := &Router{tg: &Client{token: "test-token", http: srv.Client(), apiBase: srv.URL}}
 	r.deliverAPOD(99, apod.Result{
-		Video:     "https://apod.nasa.gov/clip.mp4",
-		Message:   "Maybe Meteor caption",
+		Photo:     "https://example.test/frame.png",
+		Message:   "Watch: https://apod.nasa.gov/clip.mp4",
 		MediaType: "video",
 	})
-	if gotPath != "/bottest-token/sendVideo" {
+	if gotPath != "/bottest-token/sendPhoto" {
 		t.Fatalf("path: %q", gotPath)
 	}
-	if gotVideo != "https://apod.nasa.gov/clip.mp4" {
-		t.Fatalf("video: %q", gotVideo)
+	if gotPhoto != "https://example.test/frame.png" {
+		t.Fatalf("photo: %q", gotPhoto)
 	}
-	if gotCaption != "Maybe Meteor caption" {
+	if gotCaption != "Watch: https://apod.nasa.gov/clip.mp4" {
 		t.Fatalf("caption: %q", gotCaption)
 	}
-	if gotPhoto != "" {
-		t.Fatalf("should not send photo, got %q", gotPhoto)
+	if gotVideo != "" || gotText != "" {
+		t.Fatalf("unexpected video=%q text=%q", gotVideo, gotText)
 	}
 }
 
-func TestDeliverAPOD_fallsBackToMessageIfSendVideoFails(t *testing.T) {
+func TestDeliverAPOD_sendsMessageWhenNoPhoto(t *testing.T) {
+	var gotPath, gotText string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		gotPath = r.URL.Path
+		gotText = r.FormValue("text")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	r := &Router{tg: &Client{token: "test-token", http: srv.Client(), apiBase: srv.URL}}
+	r.deliverAPOD(99, apod.Result{
+		Message:   "Watch: https://apod.nasa.gov/clip.mp4",
+		MediaType: "video",
+	})
+	if gotPath != "/bottest-token/sendMessage" {
+		t.Fatalf("path: %q", gotPath)
+	}
+	if gotText != "Watch: https://apod.nasa.gov/clip.mp4" {
+		t.Fatalf("text: %q", gotText)
+	}
+}
+
+func TestDeliverAPOD_fallsBackToMessageIfSendPhotoFails(t *testing.T) {
 	var calls []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.URL.Path)
-		_ = r.ParseForm()
-		if r.URL.Path == "/bottest-token/sendVideo" {
+		if r.URL.Path == "/bottest-token/sendPhoto" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -55,11 +78,11 @@ func TestDeliverAPOD_fallsBackToMessageIfSendVideoFails(t *testing.T) {
 
 	r := &Router{tg: &Client{token: "test-token", http: srv.Client(), apiBase: srv.URL}}
 	r.deliverAPOD(99, apod.Result{
-		Video:     "https://apod.nasa.gov/clip.mp4",
+		Photo:     "https://example.test/frame.png",
 		Message:   "Watch: https://apod.nasa.gov/clip.mp4",
 		MediaType: "video",
 	})
-	if len(calls) != 2 || calls[0] != "/bottest-token/sendVideo" || calls[1] != "/bottest-token/sendMessage" {
+	if len(calls) != 2 || calls[0] != "/bottest-token/sendPhoto" || calls[1] != "/bottest-token/sendMessage" {
 		t.Fatalf("calls: %v", calls)
 	}
 }

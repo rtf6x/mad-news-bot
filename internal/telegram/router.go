@@ -168,23 +168,17 @@ func (r *Router) handleAPOD(ctx context.Context, chatID int64) {
 }
 
 func (r *Router) deliverAPOD(chatID int64, res apod.Result) {
-	if res.Video != "" {
-		if err := r.tg.SendVideo(chatID, res.Video, res.Message); err != nil {
-			log.Printf("apod send video: %v", err)
+	if res.Photo != "" {
+		if err := r.tg.SendPhoto(chatID, res.Photo, res.Message); err != nil {
+			log.Printf("apod send photo: %v", err)
 			if msgErr := r.tg.SendMessage(chatID, res.Message); msgErr != nil {
 				log.Printf("apod send message: %v", msgErr)
 			}
 		}
 		return
 	}
-	if res.MediaType == "video" || res.Photo == "" {
-		if err := r.tg.SendMessage(chatID, res.Message); err != nil {
-			log.Printf("apod send message: %v", err)
-		}
-		return
-	}
-	if err := r.tg.SendPhoto(chatID, res.Photo, res.Message); err != nil {
-		log.Printf("apod send photo: %v", err)
+	if err := r.tg.SendMessage(chatID, res.Message); err != nil {
+		log.Printf("apod send message: %v", err)
 	}
 }
 
