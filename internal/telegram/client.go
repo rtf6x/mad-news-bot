@@ -59,6 +59,26 @@ func (c *Client) SendPhoto(chatID int64, photoURL, caption string) error {
 	return nil
 }
 
+func (c *Client) SendVideo(chatID int64, videoURL, caption string) error {
+	if c.token == "" {
+		return fmt.Errorf("bot token is empty")
+	}
+	endpoint := fmt.Sprintf("%s/bot%s/sendVideo", c.apiBaseOrDefault(), c.token)
+	resp, err := c.http.PostForm(endpoint, url.Values{
+		"chat_id": {fmt.Sprintf("%d", chatID)},
+		"video":   {videoURL},
+		"caption": {caption},
+	})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("telegram sendVideo: %s", resp.Status)
+	}
+	return nil
+}
+
 func (c *Client) apiBaseOrDefault() string {
 	if c.apiBase != "" {
 		return c.apiBase

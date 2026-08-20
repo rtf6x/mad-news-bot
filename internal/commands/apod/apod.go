@@ -35,6 +35,7 @@ type APOD struct {
 
 type Result struct {
 	Photo     string `json:"photo"`
+	Video     string `json:"video,omitempty"`
 	Message   string `json:"message"`
 	MediaType string `json:"media_type,omitempty"`
 }
@@ -75,7 +76,7 @@ func GetCached(ctx context.Context, redis *cache.Redis) (Result, error) {
 	if err := json.Unmarshal([]byte(raw), &item); err != nil {
 		return Result{}, err
 	}
-	return format(item), nil
+	return resultFrom(ctx, item), nil
 }
 
 func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error) {
@@ -91,7 +92,15 @@ func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error)
 	}
 	raw, _ := json.Marshal(item)
 	_ = redis.SetEX(ctx, cacheKey, string(raw), cacheTTL)
-	return format(item), nil
+	return resultFrom(ctx, item), nil
+}
+
+func resultFrom(ctx context.Context, item APOD) Result {
+	res := format(item)
+	if res.Video != "" && !fitsTelegramVideo(ctx, res.Video) {
+		res.Video = ""
+	}
+	return res
 }
 
 func fetchFromNASA(ctx context.Context, apiKey string) (APOD, error) {
@@ -187,6 +196,42 @@ func isVideoAPOD(item APOD) bool {
 	return strings.Contains(item.URL, "youtube.com") || strings.Contains(item.URL, "youtu.be")
 }
 
+func isHostedVideoFile(rawURL string) bool {
+	path := strings.ToLower(rawURL)
+	if q := strings.Index(path, "?"); q >= 0 {
+		path = path[:q]
+	}
+	if strings.Contains(path, "youtube.com") || strings.Contains(path, "youtu.be") || strings.Contains(path, "vimeo.com") {
+		return false
+	}
+	return strings.HasSuffix(path, ".mp4") || strings.HasSuffix(path, ".webm") || strings.HasSuffix(path, ".mov")
+}
+
+const telegramVideoMaxBytes = 50 * 1024 * 1024
+
+func fitsTelegramVideo(ctx context.Context, videoURL string) bool {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, videoURL, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return false
+	}
+	if resp.ContentLength <= 0 || resp.ContentLength > telegramVideoMaxBytes {
+		return false
+	}
+	ctype := strings.ToLower(resp.Header.Get("Content-Type"))
+	if i := strings.Index(ctype, ";"); i >= 0 {
+		ctype = strings.TrimSpace(ctype[:i])
+	}
+	return ctype == "video/mp4"
+}
+
 func format(item APOD) Result {
 	firstSentence := item.Explanation
 	if idx := strings.Index(item.Explanation, "."); idx >= 0 {
@@ -198,9 +243,17 @@ func format(item APOD) Result {
 	}
 
 	if isVideoAPOD(item) {
-		message := fmt.Sprintf("%s (%s)\n\n%s\n\nWatch: %s\n(c) %s\n",
-			item.Title, item.Date, firstSentence, item.URL, copyright)
-		return Result{Message: message, MediaType: "video"}
+		message := fmt.Sprintf("%s (%s)\n\n%s\n\nWatch: %s\n",
+			item.Title, item.Date, firstSentence, item.URL)
+		if item.HDURL != "" && item.HDURL != item.URL {
+			message += fmt.Sprintf("Hi-Res: %s\n", item.HDURL)
+		}
+		message += fmt.Sprintf("(c) %s\n", copyright)
+		res := Result{Message: message, MediaType: "video"}
+		if isHostedVideoFile(item.URL) {
+			res.Video = item.URL
+		}
+		return res
 	}
 
 	message := fmt.Sprintf("%s (%s)\n\n%s\n\nHi-Res: %s\n(c) %s\n",

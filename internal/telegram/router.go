@@ -164,6 +164,19 @@ func (r *Router) handleAPOD(ctx context.Context, chatID int64) {
 		_ = r.tg.SendMessage(chatID, "Данные NASA APOD обновляются, попробуйте позже.")
 		return
 	}
+	r.deliverAPOD(chatID, res)
+}
+
+func (r *Router) deliverAPOD(chatID int64, res apod.Result) {
+	if res.Video != "" {
+		if err := r.tg.SendVideo(chatID, res.Video, res.Message); err != nil {
+			log.Printf("apod send video: %v", err)
+			if msgErr := r.tg.SendMessage(chatID, res.Message); msgErr != nil {
+				log.Printf("apod send message: %v", msgErr)
+			}
+		}
+		return
+	}
 	if res.MediaType == "video" || res.Photo == "" {
 		if err := r.tg.SendMessage(chatID, res.Message); err != nil {
 			log.Printf("apod send message: %v", err)

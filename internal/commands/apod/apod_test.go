@@ -123,7 +123,38 @@ func TestFormatVideoAPOD(t *testing.T) {
 	if res.Photo != "" {
 		t.Fatalf("photo should be empty for video, got %q", res.Photo)
 	}
+	if res.Video != "" {
+		t.Fatalf("youtube should not be sent as telegram video, got %q", res.Video)
+	}
 	if !strings.Contains(res.Message, "Watch:") || !strings.Contains(res.Message, "https://www.youtube.com/embed/6_cH5-daLjg") {
+		t.Fatalf("message: %q", res.Message)
+	}
+}
+
+func TestFormatHostedVideoAPODUsesLowResURL(t *testing.T) {
+	low := "https://apod.nasa.gov/apod/image/2608/perseids_eclipse_mystery.mp4"
+	hd := "https://apod.nasa.gov/apod/image/2608/perseids_eclipse_mystery_hd.mp4"
+	res := format(APOD{
+		MediaType:   "video",
+		Title:       "Maybe Meteor",
+		Date:        "2026-08-19",
+		Explanation: "Whatdunit? Extra details.",
+		URL:         low,
+		HDURL:       hd,
+	})
+	if res.MediaType != "video" {
+		t.Fatalf("media type: got %q", res.MediaType)
+	}
+	if res.Video != low {
+		t.Fatalf("video: got %q, want low-res %q", res.Video, low)
+	}
+	if res.Photo != "" {
+		t.Fatalf("photo should be empty for video, got %q", res.Photo)
+	}
+	if strings.Contains(res.Message, hd) && !strings.Contains(res.Message, "Hi-Res:") {
+		t.Fatalf("message should label hd url as Hi-Res: %q", res.Message)
+	}
+	if !strings.Contains(res.Message, "Hi-Res: "+hd) {
 		t.Fatalf("message: %q", res.Message)
 	}
 }
@@ -167,4 +198,80 @@ func TestParseNASAErrorLegacyJSON(t *testing.T) {
 	if got := err.Error(); !strings.Contains(got, "Internal Service Error") {
 		t.Fatalf("unexpected error: %q", got)
 	}
+}
+
+func TestResultFromKeepsTelegramSizedMP4(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodHead {
+			t.Errorf("method: %s", r.Method)
+		}
+		w.Header().Set("Content-Type", "video/mp4")
+		w.Header().Set("Content-Length", "22850165")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	swapHTTPClient(t, srv)
+
+	res := resultFrom(context.Background(), APOD{
+		MediaType:   "video",
+		Title:       "Maybe Meteor",
+		Date:        "2026-08-19",
+		Explanation: "Whatdunit? Extra.",
+		URL:         srv.URL + "/perseids_eclipse_mystery.mp4",
+	})
+	if res.Video != srv.URL+"/perseids_eclipse_mystery.mp4" {
+		t.Fatalf("video: got %q", res.Video)
+	}
+}
+
+func TestResultFromDropsOversizedVideo(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "video/mp4")
+		w.Header().Set("Content-Length", "60000000")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	swapHTTPClient(t, srv)
+
+	res := resultFrom(context.Background(), APOD{
+		MediaType:   "video",
+		Title:       "Huge Clip",
+		Date:        "2026-08-19",
+		Explanation: "Too big. Extra.",
+		URL:         srv.URL + "/huge.mp4",
+	})
+	if res.Video != "" {
+		t.Fatalf("oversized video should not be sent, got %q", res.Video)
+	}
+	if !strings.Contains(res.Message, "Watch:") {
+		t.Fatalf("message: %q", res.Message)
+	}
+}
+
+func TestResultFromDropsNonMP4Video(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "video/webm")
+		w.Header().Set("Content-Length", "1000")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	swapHTTPClient(t, srv)
+
+	res := resultFrom(context.Background(), APOD{
+		MediaType:   "video",
+		Title:       "WebM Clip",
+		Date:        "2026-08-19",
+		Explanation: "Wrong container. Extra.",
+		URL:         srv.URL + "/clip.webm",
+	})
+	if res.Video != "" {
+		t.Fatalf("non-mp4 should not be sent, got %q", res.Video)
+	}
+}
+
+func swapHTTPClient(t *testing.T, srv *httptest.Server) {
+	t.Helper()
+	prev := httpClient
+	httpClient = srv.Client()
+	t.Cleanup(func() { httpClient = prev })
 }
