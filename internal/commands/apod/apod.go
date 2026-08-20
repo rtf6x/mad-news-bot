@@ -24,19 +24,17 @@ var (
 )
 
 type APOD struct {
-	Copyright    string `json:"copyright"`
-	Date         string `json:"date"`
-	Explanation  string `json:"explanation"`
-	HDURL        string `json:"hdurl"`
-	MediaType    string `json:"media_type"`
-	ThumbnailURL string `json:"thumbnail_url"`
-	Title        string `json:"title"`
-	URL          string `json:"url"`
+	Copyright   string `json:"copyright"`
+	Date        string `json:"date"`
+	Explanation string `json:"explanation"`
+	HDURL       string `json:"hdurl"`
+	MediaType   string `json:"media_type"`
+	Title       string `json:"title"`
+	URL         string `json:"url"`
 }
 
 type Result struct {
 	Photo     string `json:"photo"`
-	Video     string `json:"video,omitempty"`
 	Message   string `json:"message"`
 	MediaType string `json:"media_type,omitempty"`
 }
@@ -77,7 +75,7 @@ func GetCached(ctx context.Context, redis *cache.Redis) (Result, error) {
 	if err := json.Unmarshal([]byte(raw), &item); err != nil {
 		return Result{}, err
 	}
-	return resultFrom(ctx, item), nil
+	return format(item), nil
 }
 
 func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error) {
@@ -93,23 +91,7 @@ func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error)
 	}
 	raw, _ := json.Marshal(item)
 	_ = redis.SetEX(ctx, cacheKey, string(raw), cacheTTL)
-	return resultFrom(ctx, item), nil
-}
-
-func resultFrom(ctx context.Context, item APOD) Result {
-	res := format(item)
-	if res.MediaType != "video" {
-		return res
-	}
-	res.Video = ""
-	res.Photo = ""
-	for _, frameURL := range frameURLsFor(item) {
-		if isTelegramImage(ctx, frameURL) {
-			res.Photo = frameURL
-			break
-		}
-	}
-	return res
+	return format(item), nil
 }
 
 func fetchFromNASA(ctx context.Context, apiKey string) (APOD, error) {
@@ -132,7 +114,6 @@ func fetchFromNASARange(ctx context.Context, apiKey, startDate, endDate string) 
 	q.Set("api_key", apiKey)
 	q.Set("start_date", startDate)
 	q.Set("end_date", endDate)
-	q.Set("thumbs", "true")
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := httpClient.Do(req)
@@ -206,109 +187,6 @@ func isVideoAPOD(item APOD) bool {
 	return strings.Contains(item.URL, "youtube.com") || strings.Contains(item.URL, "youtu.be")
 }
 
-func isHostedVideoFile(rawURL string) bool {
-	path := strings.ToLower(rawURL)
-	if q := strings.Index(path, "?"); q >= 0 {
-		path = path[:q]
-	}
-	if strings.Contains(path, "youtube.com") || strings.Contains(path, "youtu.be") || strings.Contains(path, "vimeo.com") {
-		return false
-	}
-	return strings.HasSuffix(path, ".mp4") || strings.HasSuffix(path, ".webm") || strings.HasSuffix(path, ".mov")
-}
-
-var frameURLsFor = candidateFrameURLs
-
-func candidateFrameURLs(item APOD) []string {
-	var out []string
-	if item.ThumbnailURL != "" {
-		out = append(out, item.ThumbnailURL)
-	}
-	if id := youtubeVideoID(item.URL); id != "" {
-		out = append(out, "https://img.youtube.com/vi/"+id+"/hqdefault.jpg")
-		return out
-	}
-	if !isHostedVideoFile(item.URL) {
-		return out
-	}
-	day, err := time.Parse("2006-01-02", item.Date)
-	if err != nil {
-		return out
-	}
-	base := videoBaseName(item.URL)
-	if base == "" {
-		return out
-	}
-	root := fmt.Sprintf(
-		"https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/%d/%s/%s_frame.png",
-		day.Year(), strings.ToLower(day.Month().String()), base,
-	)
-	out = append(out, root+"/jcr:content/renditions/cq5dam.web.1280.1280.png", root)
-	return out
-}
-
-func videoBaseName(rawURL string) string {
-	path := rawURL
-	if q := strings.Index(path, "?"); q >= 0 {
-		path = path[:q]
-	}
-	slash := strings.LastIndex(path, "/")
-	if slash >= 0 {
-		path = path[slash+1:]
-	}
-	if dot := strings.LastIndex(path, "."); dot >= 0 {
-		path = path[:dot]
-	}
-	return path
-}
-
-func youtubeVideoID(rawURL string) string {
-	u := rawURL
-	switch {
-	case strings.Contains(u, "youtube.com/embed/"):
-		u = u[strings.Index(u, "/embed/")+len("/embed/"):]
-	case strings.Contains(u, "youtube.com/watch"):
-		idx := strings.Index(u, "v=")
-		if idx < 0 {
-			return ""
-		}
-		u = u[idx+2:]
-	case strings.Contains(u, "youtu.be/"):
-		u = u[strings.Index(u, "youtu.be/")+len("youtu.be/"):]
-	default:
-		return ""
-	}
-	if i := strings.IndexAny(u, "?&/#"); i >= 0 {
-		u = u[:i]
-	}
-	return u
-}
-
-const telegramPhotoMaxBytes = 10 * 1024 * 1024
-
-func isTelegramImage(ctx context.Context, imageURL string) bool {
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, imageURL, nil)
-	if err != nil {
-		return false
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return false
-	}
-	if resp.ContentLength > telegramPhotoMaxBytes {
-		return false
-	}
-	ctype := strings.ToLower(resp.Header.Get("Content-Type"))
-	if i := strings.Index(ctype, ";"); i >= 0 {
-		ctype = strings.TrimSpace(ctype[:i])
-	}
-	return ctype == "image/jpeg" || ctype == "image/jpg" || ctype == "image/png" || ctype == "image/webp" || ctype == "image/gif"
-}
-
 func format(item APOD) Result {
 	firstSentence := item.Explanation
 	if idx := strings.Index(item.Explanation, "."); idx >= 0 {
@@ -320,14 +198,9 @@ func format(item APOD) Result {
 	}
 
 	if isVideoAPOD(item) {
-		message := fmt.Sprintf("%s (%s)\n\n%s\n\nWatch: %s\n",
-			item.Title, item.Date, firstSentence, item.URL)
-		if item.HDURL != "" && item.HDURL != item.URL {
-			message += fmt.Sprintf("Hi-Res: %s\n", item.HDURL)
-		}
-		message += fmt.Sprintf("(c) %s\n", copyright)
-		res := Result{Message: message, MediaType: "video"}
-		return res
+		message := fmt.Sprintf("%s (%s)\n\n%s\n\nWatch: %s\n(c) %s\n",
+			item.Title, item.Date, firstSentence, item.URL, copyright)
+		return Result{Message: message, MediaType: "video"}
 	}
 
 	message := fmt.Sprintf("%s (%s)\n\n%s\n\nHi-Res: %s\n(c) %s\n",

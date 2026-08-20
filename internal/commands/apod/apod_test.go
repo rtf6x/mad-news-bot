@@ -52,9 +52,6 @@ func TestFetchFromNASAUsesThreeDayRangeOnce(t *testing.T) {
 		if start == "" || end == "" {
 			t.Errorf("missing range: start=%q end=%q", start, end)
 		}
-		if r.URL.Query().Get("thumbs") != "true" {
-			t.Errorf("thumbs: %q", r.URL.Query().Get("thumbs"))
-		}
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
 			t.Fatal(err)
@@ -126,9 +123,6 @@ func TestFormatVideoAPOD(t *testing.T) {
 	if res.Photo != "" {
 		t.Fatalf("photo should be empty for video, got %q", res.Photo)
 	}
-	if res.Video != "" {
-		t.Fatalf("youtube should not be sent as telegram video, got %q", res.Video)
-	}
 	if !strings.Contains(res.Message, "Watch:") || !strings.Contains(res.Message, "https://www.youtube.com/embed/6_cH5-daLjg") {
 		t.Fatalf("message: %q", res.Message)
 	}
@@ -136,25 +130,20 @@ func TestFormatVideoAPOD(t *testing.T) {
 
 func TestFormatHostedVideoAPODKeepsWatchURL(t *testing.T) {
 	low := "https://apod.nasa.gov/apod/image/2608/perseids_eclipse_mystery.mp4"
-	hd := "https://apod.nasa.gov/apod/image/2608/perseids_eclipse_mystery_hd.mp4"
 	res := format(APOD{
 		MediaType:   "video",
 		Title:       "Maybe Meteor",
 		Date:        "2026-08-19",
 		Explanation: "Whatdunit? Extra details.",
 		URL:         low,
-		HDURL:       hd,
 	})
 	if res.MediaType != "video" {
 		t.Fatalf("media type: got %q", res.MediaType)
 	}
-	if res.Video != "" {
-		t.Fatalf("hosted mp4 must not be sent as telegram video, got %q", res.Video)
+	if res.Photo != "" {
+		t.Fatalf("photo should be empty for video, got %q", res.Photo)
 	}
 	if !strings.Contains(res.Message, "Watch: "+low) {
-		t.Fatalf("message: %q", res.Message)
-	}
-	if !strings.Contains(res.Message, "Hi-Res: "+hd) {
 		t.Fatalf("message: %q", res.Message)
 	}
 }
@@ -200,87 +189,8 @@ func TestParseNASAErrorLegacyJSON(t *testing.T) {
 	}
 }
 
-func TestCandidateFrameURLHostedMP4(t *testing.T) {
-	got := candidateFrameURLs(APOD{
-		Date:      "2026-08-19",
-		MediaType: "video",
-		URL:       "https://apod.nasa.gov/apod/image/2608/perseids_eclipse_mystery.mp4",
-	})
-	want := "https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2026/august/perseids_eclipse_mystery_frame.png/jcr:content/renditions/cq5dam.web.1280.1280.png"
-	if len(got) == 0 || got[0] != want {
-		t.Fatalf("got %v, want first %q", got, want)
-	}
-}
-
-func TestCandidateFrameURLYouTube(t *testing.T) {
-	got := candidateFrameURLs(APOD{
-		MediaType: "video",
-		URL:       "https://www.youtube.com/embed/6_cH5-daLjg",
-	})
-	want := "https://img.youtube.com/vi/6_cH5-daLjg/hqdefault.jpg"
-	if len(got) == 0 || got[0] != want {
-		t.Fatalf("got %v, want first %q", got, want)
-	}
-}
-
-func TestCandidateFrameURLPrefersAPIThumbnail(t *testing.T) {
-	got := candidateFrameURLs(APOD{
-		MediaType:    "video",
-		URL:          "https://apod.nasa.gov/clip.mp4",
-		Date:         "2026-08-19",
-		ThumbnailURL: "https://example.test/thumb.jpg",
-	})
-	if len(got) == 0 || got[0] != "https://example.test/thumb.jpg" {
-		t.Fatalf("got %v", got)
-	}
-}
-
-func TestResultFromAttachesVerifiedFrame(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead {
-			t.Errorf("method: %s", r.Method)
-		}
-		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Length", "329949")
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Cleanup(srv.Close)
-	swapHTTPClient(t, srv)
-
-	prev := frameURLsFor
-	frameURLsFor = func(APOD) []string { return []string{srv.URL + "/frame.png"} }
-	t.Cleanup(func() { frameURLsFor = prev })
-
-	res := resultFrom(context.Background(), APOD{
-		MediaType:   "video",
-		Title:       "Maybe Meteor",
-		Date:        "2026-08-19",
-		Explanation: "Whatdunit? Extra.",
-		URL:         "https://apod.nasa.gov/clip.mp4",
-	})
-	if res.Video != "" {
-		t.Fatalf("video must stay empty, got %q", res.Video)
-	}
-	if res.Photo != srv.URL+"/frame.png" {
-		t.Fatalf("photo: got %q", res.Photo)
-	}
-	if !strings.Contains(res.Message, "Watch:") {
-		t.Fatalf("message: %q", res.Message)
-	}
-}
-
-func TestResultFromSkipsMissingFrame(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	t.Cleanup(srv.Close)
-	swapHTTPClient(t, srv)
-
-	prev := frameURLsFor
-	frameURLsFor = func(APOD) []string { return []string{srv.URL + "/missing.png"} }
-	t.Cleanup(func() { frameURLsFor = prev })
-
-	res := resultFrom(context.Background(), APOD{
+func TestFormatVideoIsTextOnly(t *testing.T) {
+	res := format(APOD{
 		MediaType:   "video",
 		Title:       "Maybe Meteor",
 		Date:        "2026-08-19",
@@ -290,17 +200,7 @@ func TestResultFromSkipsMissingFrame(t *testing.T) {
 	if res.Photo != "" {
 		t.Fatalf("photo should be empty, got %q", res.Photo)
 	}
-	if res.Video != "" {
-		t.Fatalf("video must stay empty, got %q", res.Video)
-	}
-	if !strings.Contains(res.Message, "Watch:") {
+	if !strings.Contains(res.Message, "Watch: https://apod.nasa.gov/clip.mp4") {
 		t.Fatalf("message: %q", res.Message)
 	}
-}
-
-func swapHTTPClient(t *testing.T, srv *httptest.Server) {
-	t.Helper()
-	prev := httpClient
-	httpClient = srv.Client()
-	t.Cleanup(func() { httpClient = prev })
 }
