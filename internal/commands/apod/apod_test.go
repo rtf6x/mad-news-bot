@@ -2,7 +2,7 @@ package apod
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -37,55 +37,91 @@ func TestPickLatestAPODEmpty(t *testing.T) {
 	}
 }
 
-func TestFetchFromNASAUsesThreeDayRangeOnce(t *testing.T) {
-	var calls int
+const imageItem = `<item>
+<title>Harvest Moon &amp; Etna</title>
+<pubDate>Thu, 01 Oct 2026 04:05:00 +0000</pubDate>
+<apod:hdurl>https://assets.science.nasa.gov/dynamicimage/assets/science/cds/apod/apod/2026/october/moon.jpg?w=4455&#038;h=5592&#038;fit=clip&#038;crop=faces%2Cfocalpoint</apod:hdurl>
+<apod:copyright><![CDATA[<strong>Image Credit:</strong> <a href="http://x">Jane Doe</a>]]></apod:copyright>
+<apod:explanation><![CDATA[<strong>Explanation:</strong> A <a href="http://x">big</a> moon. More.]]></apod:explanation>
+<content:encoded><![CDATA[<html><body><IMG src="x.jpg"></body></html>]]></content:encoded>
+</item>`
+
+const videoItem = `<item>
+<title>Wink</title>
+<pubDate>Fri, 02 Oct 2026 04:05:00 +0000</pubDate>
+<apod:hdurl>https://assets.science.nasa.gov/dynamicimage/assets/science/cds/apod/apod/2026/october/wink.jpg?w=1920&#038;h=1088</apod:hdurl>
+<apod:copyright><![CDATA[Nobody]]></apod:copyright>
+<apod:explanation><![CDATA[<strong>Explanation:</strong> A star winks. More.]]></apod:explanation>
+<content:encoded><![CDATA[<video controls>
+<source src="https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2026/october/wink.mp4" type="video/mp4">
+</video>]]></content:encoded>
+</item>`
+
+func serveFeed(t *testing.T, items ...string) {
+	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		if r.URL.Query().Get("api_key") != "test-key" {
-			t.Errorf("api_key: %q", r.URL.Query().Get("api_key"))
-		}
-		if r.URL.Query().Get("date") != "" {
-			t.Errorf("unexpected date param: %q", r.URL.Query().Get("date"))
-		}
-		start := r.URL.Query().Get("start_date")
-		end := r.URL.Query().Get("end_date")
-		if start == "" || end == "" {
-			t.Errorf("missing range: start=%q end=%q", start, end)
-		}
-		loc, err := time.LoadLocation("America/New_York")
-		if err != nil {
-			t.Fatal(err)
-		}
-		today := time.Now().In(loc)
-		wantEnd := today.Format("2006-01-02")
-		wantStart := today.AddDate(0, 0, -2).Format("2006-01-02")
-		if start != wantStart || end != wantEnd {
-			t.Errorf("range: got %s..%s want %s..%s", start, end, wantStart, wantEnd)
-		}
-		_ = json.NewEncoder(w).Encode([]APOD{
-			{Date: wantStart, Title: "Old", URL: "https://example/old.jpg", MediaType: "image"},
-			{Date: wantEnd, Title: "New", URL: "https://example/new.jpg", MediaType: "image"},
-		})
+		fmt.Fprintf(w, `<?xml version="1.0"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:apod="https://science.nasa.gov/apod/"><channel>%s</channel></rss>`, strings.Join(items, ""))
 	}))
 	t.Cleanup(srv.Close)
+	prevURL, prevClient := feedURL, httpClient
+	feedURL, httpClient = srv.URL, srv.Client()
+	t.Cleanup(func() { feedURL, httpClient = prevURL, prevClient })
+}
 
-	prevURL, prevClient := nasaAPODURL, httpClient
-	nasaAPODURL = srv.URL
-	httpClient = srv.Client()
-	t.Cleanup(func() {
-		nasaAPODURL = prevURL
-		httpClient = prevClient
-	})
-
-	item, err := fetchFromNASA(context.Background(), "test-key")
+func TestFetchFromNASAParsesImageItem(t *testing.T) {
+	serveFeed(t, imageItem)
+	got, err := fetchFromNASA(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if calls != 1 {
-		t.Fatalf("calls: got %d want 1", calls)
+	if got.Title != "Harvest Moon & Etna" || got.Date != "2026-10-01" || got.MediaType != "image" {
+		t.Fatalf("got %+v", got)
 	}
-	if item.Title != "New" {
-		t.Fatalf("expected latest day, got %+v", item)
+	if got.Explanation != "A big moon. More." {
+		t.Fatalf("explanation: %q", got.Explanation)
+	}
+	if got.Copyright != "Image Credit: Jane Doe" {
+		t.Fatalf("copyright: %q", got.Copyright)
+	}
+	if !strings.Contains(got.HDURL, "w=4455") {
+		t.Fatalf("hdurl should stay original: %q", got.HDURL)
+	}
+	if !strings.Contains(got.URL, "w=1280") || !strings.Contains(got.URL, "h=1280") || strings.Contains(got.URL, "crop") {
+		t.Fatalf("photo url should be a 1280 rendition: %q", got.URL)
+	}
+}
+
+func TestFetchFromNASAPicksNewestAndDetectsVideo(t *testing.T) {
+	serveFeed(t, imageItem, videoItem)
+	got, err := fetchFromNASA(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "Wink" || got.MediaType != "video" {
+		t.Fatalf("got %+v", got)
+	}
+	if got.URL != "https://assets.science.nasa.gov/content/dam/science/cds/apod/apod/2026/october/wink.mp4" {
+		t.Fatalf("video url: %q", got.URL)
+	}
+}
+
+func TestFetchFromNASAEmptyFeed(t *testing.T) {
+	serveFeed(t)
+	if _, err := fetchFromNASA(context.Background()); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestFetchFromNASABadStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+	prevURL, prevClient := feedURL, httpClient
+	feedURL, httpClient = srv.URL, srv.Client()
+	t.Cleanup(func() { feedURL, httpClient = prevURL, prevClient })
+	if _, err := fetchFromNASA(context.Background()); err == nil || !strings.Contains(err.Error(), "502") {
+		t.Fatalf("expected status error, got %v", err)
 	}
 }
 
@@ -157,35 +193,6 @@ func TestIsVideoAPOD(t *testing.T) {
 	}
 	if !isVideoAPOD(APOD{URL: "https://www.youtube.com/embed/x"}) {
 		t.Fatal("expected video by youtube url in legacy cache")
-	}
-}
-
-func TestParseNASAErrorNonJSON(t *testing.T) {
-	err := parseNASAError(502, []byte("upstream connect error or disconnect/reset before headers"))
-	if err == nil || err.Error() == "" {
-		t.Fatal("expected error")
-	}
-	if got := err.Error(); got == "" || len(got) < 20 {
-		t.Fatalf("unexpected error: %q", got)
-	}
-}
-
-func TestParseNASAErrorAPIJSON(t *testing.T) {
-	body := []byte(`{"error":{"code":"OVER_RATE_LIMIT","message":"You have exceeded your rate limit."}}`)
-	err := parseNASAError(429, body)
-	if err == nil || err.Error() == "" {
-		t.Fatal("expected error")
-	}
-}
-
-func TestParseNASAErrorLegacyJSON(t *testing.T) {
-	body := []byte(`{"code":500,"msg":"Internal Service Error","service_version":"v1"}`)
-	err := parseNASAError(500, body)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if got := err.Error(); !strings.Contains(got, "Internal Service Error") {
-		t.Fatalf("unexpected error: %q", got)
 	}
 }
 

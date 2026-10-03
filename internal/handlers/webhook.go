@@ -68,7 +68,7 @@ func (h *WebhookHandler) getCovid19(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebhookHandler) getNASAAPOD(w http.ResponseWriter, r *http.Request) {
-	res, err := apod.Get(r.Context(), h.Redis, h.Config.NASAAPODKey)
+	res, err := apod.Get(r.Context(), h.Redis)
 	if err != nil {
 		log.Printf("nasaapod http: %v", err)
 		WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable"})

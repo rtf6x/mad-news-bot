@@ -3,9 +3,13 @@ package apod
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,11 +20,17 @@ const (
 	cacheKey     = "nasa-apod"
 	cacheTTL     = 10 * 24 * time.Hour
 	fetchTimeout = 45 * time.Second
+
+	photoMaxSide = "1280"
 )
 
 var (
-	nasaAPODURL = "https://api.nasa.gov/planetary/apod"
-	httpClient  = &http.Client{Timeout: fetchTimeout}
+	feedURL    = "https://science.nasa.gov/feed/apod-basic/"
+	httpClient = &http.Client{Timeout: fetchTimeout}
+
+	tagRE    = regexp.MustCompile(`(?s)<[^>]*>`)
+	spaceRE  = regexp.MustCompile(`\s+`)
+	sourceRE = regexp.MustCompile(`<source[^>]+src="([^"]+)"`)
 )
 
 type APOD struct {
@@ -39,20 +49,21 @@ type Result struct {
 	MediaType string `json:"media_type,omitempty"`
 }
 
-type nasaErrorResponse struct {
-	Error struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-	} `json:"error"`
+type feed struct {
+	Items []feedItem `xml:"channel>item"`
 }
 
-type nasaLegacyErrorResponse struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
+type feedItem struct {
+	Title       string `xml:"title"`
+	PubDate     string `xml:"pubDate"`
+	HDURL       string `xml:"https://science.nasa.gov/apod/ hdurl"`
+	Explanation string `xml:"https://science.nasa.gov/apod/ explanation"`
+	Copyright   string `xml:"https://science.nasa.gov/apod/ copyright"`
+	Content     string `xml:"http://purl.org/rss/1.0/modules/content/ encoded"`
 }
 
-func FetchAndStore(ctx context.Context, redis *cache.Redis, apiKey string) error {
-	item, err := fetchFromNASA(ctx, apiKey)
+func FetchAndStore(ctx context.Context, redis *cache.Redis) error {
+	item, err := fetchFromNASA(ctx)
 	if err != nil {
 		if _, cacheErr := GetCached(ctx, redis); cacheErr == nil {
 			return fmt.Errorf("nasa fetch failed, keeping stale cache: %w", err)
@@ -78,14 +89,11 @@ func GetCached(ctx context.Context, redis *cache.Redis) (Result, error) {
 	return format(item), nil
 }
 
-func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error) {
+func Get(ctx context.Context, redis *cache.Redis) (Result, error) {
 	if res, err := GetCached(ctx, redis); err == nil {
 		return res, nil
 	}
-	if apiKey == "" {
-		return Result{}, fmt.Errorf("nasa apod cache empty and NASA_APOD_KEY is not set")
-	}
-	item, err := fetchFromNASA(ctx, apiKey)
+	item, err := fetchFromNASA(ctx)
 	if err != nil {
 		return Result{}, err
 	}
@@ -94,27 +102,11 @@ func Get(ctx context.Context, redis *cache.Redis, apiKey string) (Result, error)
 	return format(item), nil
 }
 
-func fetchFromNASA(ctx context.Context, apiKey string) (APOD, error) {
-	loc, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		loc = time.UTC
-	}
-	today := time.Now().In(loc)
-	end := today.Format("2006-01-02")
-	start := today.AddDate(0, 0, -2).Format("2006-01-02")
-	return fetchFromNASARange(ctx, apiKey, start, end)
-}
-
-func fetchFromNASARange(ctx context.Context, apiKey, startDate, endDate string) (APOD, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, nasaAPODURL, nil)
+func fetchFromNASA(ctx context.Context) (APOD, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
 		return APOD{}, err
 	}
-	q := req.URL.Query()
-	q.Set("api_key", apiKey)
-	q.Set("start_date", startDate)
-	q.Set("end_date", endDate)
-	req.URL.RawQuery = q.Encode()
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -122,20 +114,67 @@ func fetchFromNASARange(ctx context.Context, apiKey, startDate, endDate string) 
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return APOD{}, fmt.Errorf("nasa apod read body: %w", err)
-	}
-
 	if resp.StatusCode >= 300 {
-		return APOD{}, parseNASAError(resp.StatusCode, body)
+		return APOD{}, fmt.Errorf("nasa apod: feed status %d", resp.StatusCode)
 	}
 
-	var items []APOD
-	if err := json.Unmarshal(body, &items); err != nil {
-		return APOD{}, parseNASAError(resp.StatusCode, body)
+	var f feed
+	if err := xml.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&f); err != nil {
+		return APOD{}, fmt.Errorf("nasa apod: parse feed: %w", err)
+	}
+
+	items := make([]APOD, 0, len(f.Items))
+	for _, it := range f.Items {
+		item, err := it.toAPOD()
+		if err != nil {
+			return APOD{}, err
+		}
+		items = append(items, item)
 	}
 	return pickLatestAPOD(items)
+}
+
+func (it feedItem) toAPOD() (APOD, error) {
+	published, err := time.Parse(time.RFC1123Z, strings.TrimSpace(it.PubDate))
+	if err != nil {
+		return APOD{}, fmt.Errorf("nasa apod: bad pubDate %q: %w", it.PubDate, err)
+	}
+	item := APOD{
+		Title:       html.UnescapeString(strings.TrimSpace(it.Title)),
+		Date:        published.UTC().Format("2006-01-02"),
+		Explanation: strings.TrimPrefix(plainText(it.Explanation), "Explanation: "),
+		Copyright:   plainText(it.Copyright),
+		HDURL:       html.UnescapeString(strings.TrimSpace(it.HDURL)),
+	}
+	if m := sourceRE.FindStringSubmatch(it.Content); m != nil {
+		item.MediaType = "video"
+		item.URL = html.UnescapeString(m[1])
+		return item, nil
+	}
+	item.MediaType = "image"
+	item.URL = photoURL(item.HDURL)
+	return item, nil
+}
+
+func plainText(markup string) string {
+	text := html.UnescapeString(tagRE.ReplaceAllString(markup, ""))
+	return strings.TrimSpace(spaceRE.ReplaceAllString(text, " "))
+}
+
+// photoURL asks the NASA image service for a Telegram-sized rendition; the
+// feed's hdurl is the full-size original (tens of MB for some pictures).
+func photoURL(hdurl string) string {
+	u, err := url.Parse(hdurl)
+	if err != nil || !strings.Contains(u.Path, "/dynamicimage/") {
+		return hdurl
+	}
+	q := u.Query()
+	q.Set("w", photoMaxSide)
+	q.Set("h", photoMaxSide)
+	q.Set("fit", "clip")
+	q.Del("crop")
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func pickLatestAPOD(items []APOD) (APOD, error) {
@@ -149,32 +188,9 @@ func pickLatestAPOD(items []APOD) (APOD, error) {
 		}
 	}
 	if latest.URL == "" {
-		return APOD{}, fmt.Errorf("nasa apod: no usable items in range")
+		return APOD{}, fmt.Errorf("nasa apod: no usable items in feed")
 	}
 	return latest, nil
-}
-
-func parseNASAError(status int, body []byte) error {
-	trimmed := strings.TrimSpace(string(body))
-	if trimmed == "" {
-		return fmt.Errorf("nasa apod: status %d, empty body", status)
-	}
-
-	var apiErr nasaErrorResponse
-	if json.Unmarshal(body, &apiErr) == nil && apiErr.Error.Message != "" {
-		return fmt.Errorf("nasa apod: status %d: %s", status, apiErr.Error.Message)
-	}
-
-	var legacyErr nasaLegacyErrorResponse
-	if json.Unmarshal(body, &legacyErr) == nil && legacyErr.Msg != "" {
-		return fmt.Errorf("nasa apod: status %d: %s", status, legacyErr.Msg)
-	}
-
-	snippet := trimmed
-	if len(snippet) > 160 {
-		snippet = snippet[:160] + "..."
-	}
-	return fmt.Errorf("nasa apod: status %d, non-json body: %s", status, snippet)
 }
 
 func isVideoAPOD(item APOD) bool {

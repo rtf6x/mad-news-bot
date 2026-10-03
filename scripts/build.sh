@@ -5,7 +5,6 @@ export PATH=/usr/local/go/bin:$PATH
 
 : "${BOT_TOKEN:?BOT_TOKEN must be set in the dplo project environment}"
 : "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in the dplo project environment}"
-: "${NASA_APOD_KEY:?NASA_APOD_KEY must be set in the dplo project environment}"
 : "${RABBIT_URL:?RABBIT_URL must be set in the dplo project environment}"
 
 APP_NAME="mad-news-bot"
@@ -19,7 +18,6 @@ export REDIS_ADDR="159.69.113.123:63719"
 export REDIS_PASSWORD
 export REDIS_DB="0"
 export ORACLE_REDIS_DB="3"
-export NASA_APOD_KEY
 export RABBIT_URL
 export ADVICE_JOB_TTL_SEC="120"
 export CHAT_LOG_DIR="$HOME/mad-news-bot-chat-logs"
@@ -41,7 +39,6 @@ REDIS_ADDR="$REDIS_ADDR" \
 REDIS_PASSWORD="$REDIS_PASSWORD" \
 REDIS_DB="$REDIS_DB" \
 ORACLE_REDIS_DB="$ORACLE_REDIS_DB" \
-NASA_APOD_KEY="$NASA_APOD_KEY" \
 RABBIT_URL="$RABBIT_URL" \
 ADVICE_JOB_TTL_SEC="$ADVICE_JOB_TTL_SEC" \
 CHAT_LOG_DIR="$CHAT_LOG_DIR" \
@@ -53,5 +50,5 @@ pm2 save
 
 ./mad-news-bot-scheduler
 
-SCHEDULER_CMD="cd $(pwd) && REDIS_ADDR=$REDIS_ADDR REDIS_PASSWORD=$REDIS_PASSWORD REDIS_DB=$REDIS_DB NASA_APOD_KEY=$NASA_APOD_KEY ./mad-news-bot-scheduler >> $HOME/mad-news-bot-scheduler.log 2>&1"
+SCHEDULER_CMD="cd $(pwd) && REDIS_ADDR=$REDIS_ADDR REDIS_PASSWORD=$REDIS_PASSWORD REDIS_DB=$REDIS_DB ./mad-news-bot-scheduler >> $HOME/mad-news-bot-scheduler.log 2>&1"
 (crontab -l 2>/dev/null | grep -v mad-news-bot-scheduler; echo "0 6 * * * $SCHEDULER_CMD") | crontab -

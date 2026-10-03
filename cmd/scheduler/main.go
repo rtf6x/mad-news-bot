@@ -16,10 +16,6 @@ func main() {
 	config.LoadDotEnv(".env")
 	cfg := config.Load()
 
-	if cfg.NASAAPODKey == "" {
-		log.Fatal("NASA_APOD_KEY is required for scheduler")
-	}
-
 	redis, err := cache.New(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
 	if err != nil {
 		log.Fatalf("redis: %v", err)
@@ -29,7 +25,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	if err := apod.FetchAndStore(ctx, redis, cfg.NASAAPODKey); err != nil {
+	if err := apod.FetchAndStore(ctx, redis); err != nil {
 		if strings.Contains(err.Error(), "keeping stale cache") {
 			log.Printf("warning: %v", err)
 			return

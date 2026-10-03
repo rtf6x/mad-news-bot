@@ -34,7 +34,7 @@ internal/       — commands, telegram, handlers
 
 ```bash
 cp .env.example .env
-# fill in BOT_TOKEN, REDIS_*, NASA_APOD_KEY
+# fill in BOT_TOKEN, REDIS_*
 
 make tidy
 
@@ -49,7 +49,7 @@ and listens to `advice:events` in the same process, sending the reply to Telegra
 
 ## NASA APOD
 
-`/nasaapod` reads from Redis only. The scheduler (`cmd/scheduler`) fetches NASA API once a day and stores the result under the `nasa-apod` key.
+`/nasaapod` reads from Redis only. The scheduler (`cmd/scheduler`) fetches the NASA Science APOD RSS feed (`science.nasa.gov/feed/apod-basic/`, no API key) once a day and stores the result under the `nasa-apod` key.
 
 In production, cron is configured by `scripts/build.sh` (06:00). You can also trigger an update via webhook:
 

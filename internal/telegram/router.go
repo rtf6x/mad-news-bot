@@ -95,7 +95,7 @@ func (r *Router) Handle(ctx context.Context, body []byte) Reply {
 	}
 
 	if update.Service == "updateApod" {
-		if err := apod.FetchAndStore(ctx, r.redis, r.cfg.NASAAPODKey); err != nil {
+		if err := apod.FetchAndStore(ctx, r.redis); err != nil {
 			log.Printf("updateApod: %v", err)
 			return Reply{Status: "error", Code: 1}
 		}
